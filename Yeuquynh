@@ -6,11 +6,17 @@ local CombatRemote = RS:FindFirstChild("CombatRemote")
 local ActionRemote = RS:FindFirstChild("ActionRemote")
 local StarterGui = game:GetService("StarterGui")
 local CoreGui = game:GetService("CoreGui")
-local TextChatService = game:GetService("TextChatService")
+
+--// USER ID CHECK - CHỈ CHO PHÉP ID ĐƯỢC WHITELIST
+local IDs = {["3960482184"]=true,["4482872486"]=true},["11240631370"]=true}
+if not IDs[tostring(Player.UserId)] then 
+    Player:Kick("KHÔNG PHẬN SỰ , KHÔNG PHẢI TEAM S") 
+    return 
+end
 
 --// ADMIN SYSTEM
 local AdminUsers = {
-    ["long9ngon_yeubapw"] = true,
+    ["DAIDE_LONG9NGON"] = true,
     ["tuanyeuquynh_999"] = true
 }
 local function IsAdmin(plr) return AdminUsers[plr.Name] or AdminUsers[plr.DisplayName] end
@@ -31,43 +37,33 @@ end
 
 if CheckBlacklist() then return end
 
---// USER DETECTOR - DÙNG CHAT SIGNAL ĐỂ ĐỒNG BỘ
-local UserList = {}
+--// USER DETECTOR - DÙNG FOLDER TRONG WORKSPACE
 local DetectorEnabled = true
-local lastPing = 0
+local SyncFolder = workspace:FindFirstChild("TuanHub_Users") or Instance.new("Folder")
+SyncFolder.Name = "TuanHub_Users"
+SyncFolder.Parent = workspace
 
--- Gửi tín hiệu "Tôi đang online" qua chat ẩn mỗi 3 giây
+local myTag = SyncFolder:FindFirstChild(Player.Name) or Instance.new("StringValue")
+myTag.Name = Player.Name
+myTag.Value = tostring(tick() + 10)
+myTag.Parent = SyncFolder
+
 task.spawn(function()
     while task.wait(3) do
         if DetectorEnabled then
             pcall(function()
-                -- Gửi chat ẩn với prefix đặc biệt để nhận diện
-                TextChatService.TextChannels.RBXGeneral:SendAsync("§TUANHUB_PING§" .. Player.Name)
+                myTag.Value = tostring(tick() + 10)
             end)
         end
     end
 end)
 
--- Nhận tín hiệu từ người khác
-if TextChatService then
-    TextChatService.MessageReceived:Connect(function(msg)
-        local text = msg.Text
-        if text and text:find("§TUANHUB_PING§") then
-            local name = text:gsub("§TUANHUB_PING§", "")
-            local sender = Players:FindFirstChild(name)
-            if sender and sender ~= Player then
-                UserList[sender.Name] = tick() + 10 -- Tồn tại 10 giây
-            end
-        end
-    end)
-end
-
--- Dọn dẹp người dùng đã offline
-local function CleanUserList()
+local function CleanTags()
     local now = tick()
-    for name, expire in pairs(UserList) do
-        if now > expire then
-            UserList[name] = nil
+    for _, v in pairs(SyncFolder:GetChildren()) do
+        if v:IsA("StringValue") then
+            local expire = tonumber(v.Value) or 0
+            if now > expire then v:Destroy() end
         end
     end
 end
@@ -96,7 +92,6 @@ DetectorTitle.TextSize = 13
 DetectorTitle.Parent = DetectorFrame
 Instance.new("UICorner", DetectorTitle).CornerRadius = UDim.new(0, 8)
 
--- Nút tắt/mở detector
 local DetectorToggleBtn = Instance.new("TextButton")
 DetectorToggleBtn.Size = UDim2.new(0, 60, 0, 28)
 DetectorToggleBtn.Position = UDim2.new(1, -65, 0, 3)
@@ -119,12 +114,10 @@ DetectorToggleBtn.MouseButton1Click:Connect(function()
         DetectorToggleBtn.Text = "TẮT"
         DetectorToggleBtn.BackgroundColor3 = Color3.fromRGB(140, 0, 0)
         DetectorScroll.Visible = false
-        UserList = {}
     end
     UpdateDetectorList()
 end)
 
--- Nút ẩn/hiện bảng
 local HideBtn = Instance.new("TextButton")
 HideBtn.Size = UDim2.new(0, 30, 0, 28)
 HideBtn.Position = UDim2.new(1, -130, 0, 3)
@@ -139,9 +132,9 @@ Instance.new("UICorner", HideBtn).CornerRadius = UDim.new(0, 5)
 
 HideBtn.MouseButton1Click:Connect(function()
     DetectorFrame.Visible = not DetectorFrame.Visible
+    ShowDetectorBtn.Visible = not DetectorFrame.Visible
 end)
 
--- Nút thu nhỏ để hiện lại khi đã ẩn
 local ShowDetectorBtn = Instance.new("TextButton")
 ShowDetectorBtn.Size = UDim2.new(0, 40, 0, 40)
 ShowDetectorBtn.Position = UDim2.new(1, -50, 0.5, -20)
@@ -158,10 +151,6 @@ Instance.new("UICorner", ShowDetectorBtn).CornerRadius = UDim.new(1, 0)
 ShowDetectorBtn.MouseButton1Click:Connect(function()
     DetectorFrame.Visible = true
     ShowDetectorBtn.Visible = false
-end)
-
-DetectorFrame:GetPropertyChangedSignal("Visible"):Connect(function()
-    ShowDetectorBtn.Visible = not DetectorFrame.Visible
 end)
 
 local DetectorScroll = Instance.new("ScrollingFrame")
@@ -182,9 +171,8 @@ local function UpdateDetectorList()
         if v:IsA("Frame") then v:Destroy() end
     end
     
-    CleanUserList()
+    CleanTags()
     
-    -- Luôn hiển thị bản thân
     local myFrame = Instance.new("Frame")
     myFrame.Size = UDim2.new(1, -5, 0, 40)
     myFrame.BackgroundColor3 = Color3.fromRGB(35, 50, 35)
@@ -203,50 +191,49 @@ local function UpdateDetectorList()
     myLabel.TextXAlignment = Enum.TextXAlignment.Left
     myLabel.Parent = myFrame
     
-    -- Hiển thị người dùng khác
-    for name, _ in pairs(UserList) do
-        local p = Players:FindFirstChild(name)
-        if p and p ~= Player then
-            local ItemFrame = Instance.new("Frame")
-            ItemFrame.Size = UDim2.new(1, -5, 0, 40)
-            ItemFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-            ItemFrame.BorderSizePixel = 0
-            ItemFrame.Parent = DetectorScroll
-            Instance.new("UICorner", ItemFrame).CornerRadius = UDim.new(0, 5)
-            
-            local NameLabel = Instance.new("TextLabel")
-            NameLabel.Size = UDim2.new(0.55, 0, 1, 0)
-            NameLabel.Position = UDim2.new(0, 10, 0, 0)
-            NameLabel.BackgroundTransparency = 1
-            NameLabel.Text = "👤 " .. p.DisplayName
-            NameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-            NameLabel.Font = Enum.Font.GothamBold
-            NameLabel.TextSize = 11
-            NameLabel.TextXAlignment = Enum.TextXAlignment.Left
-            NameLabel.Parent = ItemFrame
-            
-            -- Nút Kick/Blacklist (chỉ admin thấy)
-            if IsOwner then
-                local KickBtn = Instance.new("TextButton")
-                KickBtn.Size = UDim2.new(0, 55, 0, 28)
-                KickBtn.Position = UDim2.new(1, -60, 0.5, -14)
-                KickBtn.Text = "KICK"
-                KickBtn.BackgroundColor3 = Color3.fromRGB(180, 30, 30)
-                KickBtn.TextColor3 = Color3.new(1, 1, 1)
-                KickBtn.Font = Enum.Font.GothamBold
-                KickBtn.TextSize = 10
-                KickBtn.BorderSizePixel = 0
-                KickBtn.Parent = ItemFrame
-                Instance.new("UICorner", KickBtn).CornerRadius = UDim.new(0, 4)
+    for _, v in pairs(SyncFolder:GetChildren()) do
+        if v:IsA("StringValue") and v.Name ~= Player.Name then
+            local p = Players:FindFirstChild(v.Name)
+            if p then
+                local ItemFrame = Instance.new("Frame")
+                ItemFrame.Size = UDim2.new(1, -5, 0, 40)
+                ItemFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+                ItemFrame.BorderSizePixel = 0
+                ItemFrame.Parent = DetectorScroll
+                Instance.new("UICorner", ItemFrame).CornerRadius = UDim.new(0, 5)
                 
-                KickBtn.MouseButton1Click:Connect(function()
-                    Blacklist[p.Name] = true
-                    pcall(function()
-                        p:Kick("❌ BẠN KHÔNG PHẢI TEAM HTGMX, KHÔNG PHẬN SỰ!")
+                local NameLabel = Instance.new("TextLabel")
+                NameLabel.Size = UDim2.new(0.55, 0, 1, 0)
+                NameLabel.Position = UDim2.new(0, 10, 0, 0)
+                NameLabel.BackgroundTransparency = 1
+                NameLabel.Text = "👤 " .. p.DisplayName
+                NameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                NameLabel.Font = Enum.Font.GothamBold
+                NameLabel.TextSize = 11
+                NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+                NameLabel.Parent = ItemFrame
+                
+                if IsOwner then
+                    local KickBtn = Instance.new("TextButton")
+                    KickBtn.Size = UDim2.new(0, 55, 0, 28)
+                    KickBtn.Position = UDim2.new(1, -60, 0.5, -14)
+                    KickBtn.Text = "KICK"
+                    KickBtn.BackgroundColor3 = Color3.fromRGB(180, 30, 30)
+                    KickBtn.TextColor3 = Color3.new(1, 1, 1)
+                    KickBtn.Font = Enum.Font.GothamBold
+                    KickBtn.TextSize = 10
+                    KickBtn.BorderSizePixel = 0
+                    KickBtn.Parent = ItemFrame
+                    Instance.new("UICorner", KickBtn).CornerRadius = UDim.new(0, 4)
+                    
+                    KickBtn.MouseButton1Click:Connect(function()
+                        Blacklist[p.Name] = true
+                        pcall(function()
+                            p:Kick("❌ BẠN KHÔNG PHẢI TEAM HTGMX, KHÔNG PHẬN SỰ!")
+                        end)
+                        UpdateDetectorList()
                     end)
-                    UserList[p.Name] = nil
-                    UpdateDetectorList()
-                end)
+                end
             end
         end
     end
@@ -254,7 +241,6 @@ local function UpdateDetectorList()
     DetectorScroll.CanvasSize = UDim2.new(0, 0, 0, DetectorLayout.AbsoluteContentSize.Y)
 end
 
--- Nút Unblacklist All (chỉ admin)
 if IsOwner then
     local UnblacklistBtn = Instance.new("TextButton")
     UnblacklistBtn.Size = UDim2.new(0, 330, 0, 28)
@@ -274,7 +260,6 @@ if IsOwner then
     end)
 end
 
--- Cập nhật detector mỗi 3 giây
 task.spawn(function()
     while task.wait(3) do
         UpdateDetectorList()
@@ -838,9 +823,7 @@ end end)
 Player.CharacterAdded:Connect(function() SpawnTime = tick(); LastTeleport = 0; TeleTarget = nil; BlockDisabledUntil = 0; if IsAimLock then task.wait(0.3); StartAimLock() end; UI() end)
 UI(); UpdateHitboxList(); UpdateBVList(); UpdateDetectorList()
 Players.PlayerAdded:Connect(function() task.wait(1); UpdateHitboxList() end)
-Players.PlayerRemoving:Connect(function(p) IgnoreList[p.Name] = nil; AimProtected[p.Name] = nil; UpdateHitboxList(); StopBring(p); UserList[p.Name] = nil end)
+Players.PlayerRemoving:Connect(function(p) IgnoreList[p.Name] = nil; AimProtected[p.Name] = nil; UpdateHitboxList(); StopBring(p) end)
 local vu = game:GetService("VirtualUser")
 Players.LocalPlayer.Idled:Connect(function() vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame) task.wait(1) vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame) end)
-print("✅ TUAN HUB + DETECTOR + BLACKLIST LOADED!")
-print("👥 Detector: Chat Signal Sync - Bảng bên phải")
-print("🔛 Nút BẬT/TẮT detector + Nút ẩn/hiện bảng")
+print("✅ TUAN HUB + ID CHECK + DETECTOR LOADED!")
