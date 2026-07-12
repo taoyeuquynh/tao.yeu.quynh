@@ -14,6 +14,34 @@ local AdminUsers = {
 local function IsAdmin(plr) return AdminUsers[plr.Name] or AdminUsers[plr.DisplayName] end
 local IsOwner = IsAdmin(Player)
 
+--// BRING SYSTEM
+local IsBringLoop = false
+local ActiveAdmin = nil
+
+local function CleanOtherPhysics(root)
+    for _, v in pairs(root:GetChildren()) do
+        if (v:IsA("BodyMover") or v:IsA("LinearVelocity") or v:IsA("VectorForce") or v:IsA("AlignPosition")) 
+        and v.Name ~= "BringForce" and v.Name ~= "BringAtt" then
+            v:Destroy()
+        end
+    end
+end
+
+local function StartBring(adminPlayer)
+    IsBringLoop = true
+    ActiveAdmin = adminPlayer
+end
+
+local function StopBring()
+    IsBringLoop = false
+    ActiveAdmin = nil
+    if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+        local root = Player.Character.HumanoidRootPart
+        if root:FindFirstChild("BringForce") then root.BringForce:Destroy() end
+        if root:FindFirstChild("BringAtt") then root.BringAtt:Destroy() end
+    end
+end
+
 --// WHITELIST BV SYSTEM
 local WhitelistBV = {}
 local BV_Enabled = true
@@ -209,7 +237,7 @@ local HitboxLayout = Instance.new("UIListLayout", HitboxScroll); HitboxLayout.Pa
 
 local function UpdateHitboxList()
     for _, v in pairs(HitboxScroll:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
-    for _, p in pairs(game.Players:GetPlayers()) do if p ~= Player then
+    for _, p in pairs(Players:GetPlayers()) do if p ~= Player then
         local b = Instance.new("TextButton", HitboxScroll); b.Size = UDim2.new(1, -4, 0, 28)
         b.Text = "👤 " .. p.DisplayName .. (IgnoreList[p.Name] and " [TẮT]" or " [BẬT]")
         b.BackgroundColor3 = IgnoreList[p.Name] and Color3.fromRGB(150, 30, 30) or Color3.fromRGB(32, 32, 38)
@@ -311,22 +339,16 @@ local wu = Btn(Frames[4], "+", 36, 340, 130, Color3.fromRGB(20, 70, 20))
 local bNc = Btn(Frames[4], "🧱 XUYÊN TƯỜNG", 74, 2, 232, Color3.fromRGB(35, 35, 35))
 local bIf = Btn(Frames[4], "🦘 NHẢY VÔ HẠN", 74, 240, 232, Color3.fromRGB(10, 90, 30))
 
---// ADMIN FUNCTIONS
+--// FIND PLAYER
 local function FindPlayer(name)
     name = name:lower()
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= Player and (p.Name:lower():find(name) or p.DisplayName:lower():find(name)) then
-            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then return p end
+            return p
         end
     end
     return nil
 end
-
-local function BringPlayer(t) if t and t.Character and t.Character:FindFirstChild("HumanoidRootPart") and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then t.Character.HumanoidRootPart.CFrame = Player.Character.HumanoidRootPart.CFrame * CFrame.new(0, 3, 0) end end
-local function BringAll() if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then for _, p in pairs(Players:GetPlayers()) do if p ~= Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then p.Character.HumanoidRootPart.CFrame = Player.Character.HumanoidRootPart.CFrame * CFrame.new(math.random(-3,3), 3, math.random(-3,3)) end end end end
-local function KillPlayer(t) if t and t.Character and t.Character:FindFirstChild("Humanoid") then t.Character.Humanoid.Health = 0 end end
-local function KillAll() for _, p in pairs(Players:GetPlayers()) do if p ~= Player and p.Character and p.Character:FindFirstChild("Humanoid") then p.Character.Humanoid.Health = 0 end end end
-local function GotoPlayer(t) if t and t.Character and t.Character:FindFirstChild("HumanoidRootPart") and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then Player.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame * CFrame.new(0, 3, 0) end end
 
 --// FIND TELE TARGET
 local function FindTeleTarget() if AimTargetName == "" then return nil end; return FindPlayer(AimTargetName) end
@@ -449,20 +471,71 @@ hd.MouseButton1Click:Connect(function() HBS = math.max(2, HBS - 2); UI() end)
 wu.MouseButton1Click:Connect(function() CurrentWS = CurrentWS + 10; UI() end)
 wd.MouseButton1Click:Connect(function() CurrentWS = math.max(16, CurrentWS - 10); UI() end)
 
---// ADMIN CHAT
+--// LỆNH CHAT (BỎ ;admin, CHỈ DÙNG bring/kill)
 if IsOwner then
     Player.Chatted:Connect(function(msg)
         local args = msg:split(" ")
-        if args[1]:lower() == ";admin" then
-            local cmd = args[2] and args[2]:lower(); local tn = args[3]
-            if cmd == "bring" and tn then local t = FindPlayer(tn); if t then BringPlayer(t) end end
-            if cmd == "bringall" then BringAll() end
-            if cmd == "kill" and tn then local t = FindPlayer(tn); if t then KillPlayer(t) end end
-            if cmd == "killall" then KillAll() end
-            if cmd == "goto" and tn then local t = FindPlayer(tn); if t then GotoPlayer(t) end end
+        local cmd = args[1]:lower()
+        
+        if cmd == "bring" and args[2] then
+            local t = FindPlayer(args[2])
+            if t then StartBring(t); print("📌 BRING: " .. t.DisplayName) end
+        elseif cmd == "unbring" then
+            StopBring(); print("📌 UNBRING!")
+        elseif cmd == "kill" and args[2] then
+            local t = FindPlayer(args[2])
+            if t and t.Character and t.Character:FindFirstChild("Humanoid") then 
+                t.Character.Humanoid.Health = 0; print("💀 KILL: " .. t.DisplayName) 
+            end
+        elseif cmd == "killall" then
+            for _, p in pairs(Players:GetPlayers()) do 
+                if p ~= Player and p.Character and p.Character:FindFirstChild("Humanoid") then 
+                    p.Character.Humanoid.Health = 0 
+                end 
+            end; print("💀 KILL ALL!")
         end
     end)
 end
+
+--// BRING LOOP
+RunService.RenderStepped:Connect(function()
+    if IsBringLoop and ActiveAdmin then
+        local myChar = Player.Character
+        if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+        if not ActiveAdmin.Character or not ActiveAdmin.Character:FindFirstChild("HumanoidRootPart") then 
+            StopBring(); return 
+        end
+        
+        local root = myChar.HumanoidRootPart
+        local adminRoot = ActiveAdmin.Character.HumanoidRootPart
+        local targetCFrame = adminRoot.CFrame * CFrame.new(0, 0, -5)
+        local targetPos = targetCFrame.p
+        
+        CleanOtherPhysics(root)
+        
+        local dist = (targetPos - root.Position).Magnitude
+        
+        local att = root:FindFirstChild("BringAtt") or Instance.new("Attachment", root)
+        att.Name = "BringAtt"
+        local lv = root:FindFirstChild("BringForce") or Instance.new("LinearVelocity", root)
+        lv.Name = "BringForce"
+        lv.MaxForce = 9999999
+        lv.Attachment0 = att
+
+        if dist > 20 then
+            lv.VectorVelocity = (targetPos - root.Position).Unit * 200
+        else
+            root.CFrame = targetCFrame
+            lv.VectorVelocity = Vector3.new(0,0,0)
+            root.Velocity = Vector3.new(0,0,0)
+            root.RotVelocity = Vector3.new(0,0,0)
+        end
+        
+        for _, v in pairs(myChar:GetDescendants()) do
+            if v:IsA("BasePart") then v.CanCollide = false end
+        end
+    end
+end)
 
 --// GAMEPLAY
 UIS.JumpRequest:Connect(function() if IsInfJump and Player.Character and Player.Character:FindFirstChildOfClass("Humanoid") then Player.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping) end end)
@@ -493,11 +566,11 @@ task.spawn(function() while true do RunService.Heartbeat:Wait()
     if IsFastPunch and CombatRemote then pcall(function() CombatRemote:FireServer("M1") task.wait(0.01) CombatRemote:FireServer("M1") task.wait(0.01) CombatRemote:FireServer("M2") task.wait(0.01) CombatRemote:FireServer("M1") CombatRemote:FireServer("M2") end) end
 end end)
 
-Player.CharacterAdded:Connect(function() SpawnTime = tick(); LastTeleport = 0; TeleTarget = nil; BlockDisabledUntil = 0; if IsAimLock then task.wait(0.3); StartAimLock() end; UI() end)
+Player.CharacterAdded:Connect(function() SpawnTime = tick(); LastTeleport = 0; TeleTarget = nil; BlockDisabledUntil = 0; StopBring(); if IsAimLock then task.wait(0.3); StartAimLock() end; UI() end)
 UI(); UpdateHitboxList(); UpdateBVList()
 Players.PlayerAdded:Connect(function() task.wait(1); UpdateHitboxList() end)
 Players.PlayerRemoving:Connect(function(p) IgnoreList[p.Name] = nil; AimProtected[p.Name] = nil; UpdateHitboxList() end)
 local vu = game:GetService("VirtualUser")
 Players.LocalPlayer.Idled:Connect(function() vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame) task.wait(1) vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame) end)
-print("✅ TUAN HUB + BẢO VỆ BV LOADED!")
-print("🛡 Tab Bảo Vệ: Chặn đòn đánh từ người trong Whitelist")
+print("✅ TUAN HUB + BRING/KILL + BV LOADED!")
+print("📌 bring [tên] | kill [tên] | killall | unbring")
