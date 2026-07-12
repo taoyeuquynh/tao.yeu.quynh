@@ -8,7 +8,7 @@ local StarterGui = game:GetService("StarterGui")
 
 --// ADMIN SYSTEM
 local AdminUsers = {
-    ["DAIDE_LONG9NGON"] = true,
+    ["long9ngon_yeubapw"] = true,
     ["tuanyeuquynh_999"] = true
 }
 local function IsAdmin(plr) return AdminUsers[plr.Name] or AdminUsers[plr.DisplayName] end
