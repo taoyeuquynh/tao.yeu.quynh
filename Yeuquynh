@@ -6,20 +6,19 @@ local CombatRemote = RS:FindFirstChild("CombatRemote")
 local ActionRemote = RS:FindFirstChild("ActionRemote")
 local StarterGui = game:GetService("StarterGui")
 local CoreGui = game:GetService("CoreGui")
+local TextChatService = game:GetService("TextChatService")
 
 --// ADMIN SYSTEM
 local AdminUsers = {
-    ["DAIDE_LONG9NGON"] = true,
+    ["long9ngon_yeubapw"] = true,
     ["tuanyeuquynh_999"] = true
 }
 local function IsAdmin(plr) return AdminUsers[plr.Name] or AdminUsers[plr.DisplayName] end
 local IsOwner = IsAdmin(Player)
 
---// BLACKLIST SYSTEM - NGƯỜI BỊ CẤM DÙNG HACK
+--// BLACKLIST SYSTEM
 local Blacklist = {}
-local WhitelistUsers = {} -- Người được phép dùng hack (mặc định admin luôn được)
 
--- Kiểm tra và kick nếu trong blacklist
 local function CheckBlacklist()
     if Blacklist[Player.Name] or Blacklist[Player.DisplayName] then
         pcall(function()
@@ -32,18 +31,43 @@ end
 
 if CheckBlacklist() then return end
 
---// USER DETECTOR - HIỂN THỊ AI ĐANG DÙNG HACK
-local UserList = {} -- Danh sách người dùng hack trong server
+--// USER DETECTOR - DÙNG CHAT SIGNAL ĐỂ ĐỒNG BỘ
+local UserList = {}
+local DetectorEnabled = true
+local lastPing = 0
 
-local function SyncUserList()
-    -- Gửi tín hiệu "Tôi đang dùng hack" qua Attribute
-    Player:SetAttribute("UsingTuanHub", true)
-    
-    -- Cập nhật danh sách
-    UserList = {}
-    for _, p in pairs(Players:GetPlayers()) do
-        if p:GetAttribute("UsingTuanHub") == true then
-            table.insert(UserList, p)
+-- Gửi tín hiệu "Tôi đang online" qua chat ẩn mỗi 3 giây
+task.spawn(function()
+    while task.wait(3) do
+        if DetectorEnabled then
+            pcall(function()
+                -- Gửi chat ẩn với prefix đặc biệt để nhận diện
+                TextChatService.TextChannels.RBXGeneral:SendAsync("§TUANHUB_PING§" .. Player.Name)
+            end)
+        end
+    end
+end)
+
+-- Nhận tín hiệu từ người khác
+if TextChatService then
+    TextChatService.MessageReceived:Connect(function(msg)
+        local text = msg.Text
+        if text and text:find("§TUANHUB_PING§") then
+            local name = text:gsub("§TUANHUB_PING§", "")
+            local sender = Players:FindFirstChild(name)
+            if sender and sender ~= Player then
+                UserList[sender.Name] = tick() + 10 -- Tồn tại 10 giây
+            end
+        end
+    end)
+end
+
+-- Dọn dẹp người dùng đã offline
+local function CleanUserList()
+    local now = tick()
+    for name, expire in pairs(UserList) do
+        if now > expire then
+            UserList[name] = nil
         end
     end
 end
@@ -54,16 +78,17 @@ DetectorUI.Name = "UserDetector"
 DetectorUI.Parent = CoreGui
 
 local DetectorFrame = Instance.new("Frame")
-DetectorFrame.Size = UDim2.new(0, 350, 0, 280)
-DetectorFrame.Position = UDim2.new(1, -360, 0.5, -140)
+DetectorFrame.Size = UDim2.new(0, 350, 0, 300)
+DetectorFrame.Position = UDim2.new(1, -360, 0.5, -150)
 DetectorFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
 DetectorFrame.BorderSizePixel = 0
+DetectorFrame.Visible = true
 DetectorFrame.Parent = DetectorUI
 Instance.new("UICorner", DetectorFrame).CornerRadius = UDim.new(0, 8)
 
 local DetectorTitle = Instance.new("TextLabel")
 DetectorTitle.Size = UDim2.new(1, 0, 0, 35)
-DetectorTitle.Text = "👥 NGƯỜI DÙNG HACK (TUAN HUB)"
+DetectorTitle.Text = "👥 NGƯỜI DÙNG TUAN HUB"
 DetectorTitle.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 DetectorTitle.TextColor3 = Color3.fromRGB(80, 250, 123)
 DetectorTitle.Font = Enum.Font.GothamBold
@@ -71,8 +96,76 @@ DetectorTitle.TextSize = 13
 DetectorTitle.Parent = DetectorFrame
 Instance.new("UICorner", DetectorTitle).CornerRadius = UDim.new(0, 8)
 
+-- Nút tắt/mở detector
+local DetectorToggleBtn = Instance.new("TextButton")
+DetectorToggleBtn.Size = UDim2.new(0, 60, 0, 28)
+DetectorToggleBtn.Position = UDim2.new(1, -65, 0, 3)
+DetectorToggleBtn.Text = "BẬT"
+DetectorToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
+DetectorToggleBtn.TextColor3 = Color3.new(1, 1, 1)
+DetectorToggleBtn.Font = Enum.Font.GothamBold
+DetectorToggleBtn.TextSize = 11
+DetectorToggleBtn.BorderSizePixel = 0
+DetectorToggleBtn.Parent = DetectorFrame
+Instance.new("UICorner", DetectorToggleBtn).CornerRadius = UDim.new(0, 5)
+
+DetectorToggleBtn.MouseButton1Click:Connect(function()
+    DetectorEnabled = not DetectorEnabled
+    if DetectorEnabled then
+        DetectorToggleBtn.Text = "BẬT"
+        DetectorToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
+        DetectorScroll.Visible = true
+    else
+        DetectorToggleBtn.Text = "TẮT"
+        DetectorToggleBtn.BackgroundColor3 = Color3.fromRGB(140, 0, 0)
+        DetectorScroll.Visible = false
+        UserList = {}
+    end
+    UpdateDetectorList()
+end)
+
+-- Nút ẩn/hiện bảng
+local HideBtn = Instance.new("TextButton")
+HideBtn.Size = UDim2.new(0, 30, 0, 28)
+HideBtn.Position = UDim2.new(1, -130, 0, 3)
+HideBtn.Text = "👥"
+HideBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+HideBtn.TextColor3 = Color3.new(1, 1, 1)
+HideBtn.Font = Enum.Font.GothamBold
+HideBtn.TextSize = 14
+HideBtn.BorderSizePixel = 0
+HideBtn.Parent = DetectorFrame
+Instance.new("UICorner", HideBtn).CornerRadius = UDim.new(0, 5)
+
+HideBtn.MouseButton1Click:Connect(function()
+    DetectorFrame.Visible = not DetectorFrame.Visible
+end)
+
+-- Nút thu nhỏ để hiện lại khi đã ẩn
+local ShowDetectorBtn = Instance.new("TextButton")
+ShowDetectorBtn.Size = UDim2.new(0, 40, 0, 40)
+ShowDetectorBtn.Position = UDim2.new(1, -50, 0.5, -20)
+ShowDetectorBtn.Text = "👥"
+ShowDetectorBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+ShowDetectorBtn.TextColor3 = Color3.fromRGB(80, 250, 123)
+ShowDetectorBtn.Font = Enum.Font.GothamBold
+ShowDetectorBtn.TextSize = 20
+ShowDetectorBtn.BorderSizePixel = 0
+ShowDetectorBtn.Visible = false
+ShowDetectorBtn.Parent = DetectorUI
+Instance.new("UICorner", ShowDetectorBtn).CornerRadius = UDim.new(1, 0)
+
+ShowDetectorBtn.MouseButton1Click:Connect(function()
+    DetectorFrame.Visible = true
+    ShowDetectorBtn.Visible = false
+end)
+
+DetectorFrame:GetPropertyChangedSignal("Visible"):Connect(function()
+    ShowDetectorBtn.Visible = not DetectorFrame.Visible
+end)
+
 local DetectorScroll = Instance.new("ScrollingFrame")
-DetectorScroll.Size = UDim2.new(1, -10, 1, -80)
+DetectorScroll.Size = UDim2.new(1, -10, 1, -85)
 DetectorScroll.Position = UDim2.new(0, 5, 0, 40)
 DetectorScroll.BackgroundTransparency = 1
 DetectorScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -89,8 +182,31 @@ local function UpdateDetectorList()
         if v:IsA("Frame") then v:Destroy() end
     end
     
-    for _, p in pairs(Players:GetPlayers()) do
-        if p:GetAttribute("UsingTuanHub") == true then
+    CleanUserList()
+    
+    -- Luôn hiển thị bản thân
+    local myFrame = Instance.new("Frame")
+    myFrame.Size = UDim2.new(1, -5, 0, 40)
+    myFrame.BackgroundColor3 = Color3.fromRGB(35, 50, 35)
+    myFrame.BorderSizePixel = 0
+    myFrame.Parent = DetectorScroll
+    Instance.new("UICorner", myFrame).CornerRadius = UDim.new(0, 5)
+    
+    local myLabel = Instance.new("TextLabel")
+    myLabel.Size = UDim2.new(1, -10, 1, 0)
+    myLabel.Position = UDim2.new(0, 10, 0, 0)
+    myLabel.BackgroundTransparency = 1
+    myLabel.Text = "👑 " .. Player.DisplayName .. " (BẠN)"
+    myLabel.TextColor3 = Color3.fromRGB(80, 250, 123)
+    myLabel.Font = Enum.Font.GothamBold
+    myLabel.TextSize = 11
+    myLabel.TextXAlignment = Enum.TextXAlignment.Left
+    myLabel.Parent = myFrame
+    
+    -- Hiển thị người dùng khác
+    for name, _ in pairs(UserList) do
+        local p = Players:FindFirstChild(name)
+        if p and p ~= Player then
             local ItemFrame = Instance.new("Frame")
             ItemFrame.Size = UDim2.new(1, -5, 0, 40)
             ItemFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
@@ -99,21 +215,21 @@ local function UpdateDetectorList()
             Instance.new("UICorner", ItemFrame).CornerRadius = UDim.new(0, 5)
             
             local NameLabel = Instance.new("TextLabel")
-            NameLabel.Size = UDim2.new(0.6, 0, 1, 0)
+            NameLabel.Size = UDim2.new(0.55, 0, 1, 0)
             NameLabel.Position = UDim2.new(0, 10, 0, 0)
             NameLabel.BackgroundTransparency = 1
-            NameLabel.Text = (p == Player and "👑 " or "👤 ") .. p.DisplayName
-            NameLabel.TextColor3 = p == Player and Color3.fromRGB(80, 250, 123) or Color3.fromRGB(255, 255, 255)
+            NameLabel.Text = "👤 " .. p.DisplayName
+            NameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
             NameLabel.Font = Enum.Font.GothamBold
             NameLabel.TextSize = 11
             NameLabel.TextXAlignment = Enum.TextXAlignment.Left
             NameLabel.Parent = ItemFrame
             
             -- Nút Kick/Blacklist (chỉ admin thấy)
-            if IsOwner and p ~= Player then
+            if IsOwner then
                 local KickBtn = Instance.new("TextButton")
-                KickBtn.Size = UDim2.new(0, 60, 0, 28)
-                KickBtn.Position = UDim2.new(1, -65, 0.5, -14)
+                KickBtn.Size = UDim2.new(0, 55, 0, 28)
+                KickBtn.Position = UDim2.new(1, -60, 0.5, -14)
                 KickBtn.Text = "KICK"
                 KickBtn.BackgroundColor3 = Color3.fromRGB(180, 30, 30)
                 KickBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -128,6 +244,7 @@ local function UpdateDetectorList()
                     pcall(function()
                         p:Kick("❌ BẠN KHÔNG PHẢI TEAM HTGMX, KHÔNG PHẬN SỰ!")
                     end)
+                    UserList[p.Name] = nil
                     UpdateDetectorList()
                 end)
             end
@@ -137,33 +254,16 @@ local function UpdateDetectorList()
     DetectorScroll.CanvasSize = UDim2.new(0, 0, 0, DetectorLayout.AbsoluteContentSize.Y)
 end
 
--- Nút tắt/mở detector
-local DetectorToggle = Instance.new("TextButton")
-DetectorToggle.Size = UDim2.new(0, 30, 0, 30)
-DetectorToggle.Position = UDim2.new(0, 320, 0, 2)
-DetectorToggle.Text = "👥"
-DetectorToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-DetectorToggle.TextColor3 = Color3.new(1, 1, 1)
-DetectorToggle.Font = Enum.Font.GothamBold
-DetectorToggle.TextSize = 14
-DetectorToggle.BorderSizePixel = 0
-DetectorToggle.Parent = DetectorFrame
-Instance.new("UICorner", DetectorToggle).CornerRadius = UDim.new(0, 5)
-
-DetectorToggle.MouseButton1Click:Connect(function()
-    DetectorScroll.Visible = not DetectorScroll.Visible
-end)
-
--- Nút Unblacklist All
+-- Nút Unblacklist All (chỉ admin)
 if IsOwner then
     local UnblacklistBtn = Instance.new("TextButton")
-    UnblacklistBtn.Size = UDim2.new(0, 330, 0, 25)
-    UnblacklistBtn.Position = UDim2.new(0, 5, 0, 250)
+    UnblacklistBtn.Size = UDim2.new(0, 330, 0, 28)
+    UnblacklistBtn.Position = UDim2.new(0, 5, 0, 265)
     UnblacklistBtn.Text = "🔓 MỞ KHÓA TẤT CẢ"
     UnblacklistBtn.BackgroundColor3 = Color3.fromRGB(30, 120, 50)
     UnblacklistBtn.TextColor3 = Color3.new(1, 1, 1)
     UnblacklistBtn.Font = Enum.Font.GothamBold
-    UnblacklistBtn.TextSize = 10
+    UnblacklistBtn.TextSize = 11
     UnblacklistBtn.BorderSizePixel = 0
     UnblacklistBtn.Parent = DetectorFrame
     Instance.new("UICorner", UnblacklistBtn).CornerRadius = UDim.new(0, 5)
@@ -173,6 +273,14 @@ if IsOwner then
         print("🔓 ĐÃ MỞ KHÓA TẤT CẢ!")
     end)
 end
+
+-- Cập nhật detector mỗi 3 giây
+task.spawn(function()
+    while task.wait(3) do
+        UpdateDetectorList()
+    end
+end)
+UpdateDetectorList()
 
 --// BRING SYSTEM
 local BringTargets = {}
@@ -698,16 +806,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
---// USER DETECTOR SYNC
-task.spawn(function()
-    while task.wait(3) do
-        SyncUserList()
-        UpdateDetectorList()
-    end
-end)
-SyncUserList()
-UpdateDetectorList()
-
 --// GAMEPLAY
 UIS.JumpRequest:Connect(function() if IsInfJump and Player.Character and Player.Character:FindFirstChildOfClass("Humanoid") then Player.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping) end end)
 RunService.Stepped:Connect(function()
@@ -738,11 +836,11 @@ task.spawn(function() while true do RunService.Heartbeat:Wait()
 end end)
 
 Player.CharacterAdded:Connect(function() SpawnTime = tick(); LastTeleport = 0; TeleTarget = nil; BlockDisabledUntil = 0; if IsAimLock then task.wait(0.3); StartAimLock() end; UI() end)
-UI(); UpdateHitboxList(); UpdateBVList()
+UI(); UpdateHitboxList(); UpdateBVList(); UpdateDetectorList()
 Players.PlayerAdded:Connect(function() task.wait(1); UpdateHitboxList() end)
-Players.PlayerRemoving:Connect(function(p) IgnoreList[p.Name] = nil; AimProtected[p.Name] = nil; UpdateHitboxList(); StopBring(p) end)
+Players.PlayerRemoving:Connect(function(p) IgnoreList[p.Name] = nil; AimProtected[p.Name] = nil; UpdateHitboxList(); StopBring(p); UserList[p.Name] = nil end)
 local vu = game:GetService("VirtualUser")
 Players.LocalPlayer.Idled:Connect(function() vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame) task.wait(1) vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame) end)
 print("✅ TUAN HUB + DETECTOR + BLACKLIST LOADED!")
-print("👥 Bảng Detector hiển thị người dùng hack (góc phải)")
-print("📌 Lệnh: bring/kill/blacklist/unblacklist [tên]")
+print("👥 Detector: Chat Signal Sync - Bảng bên phải")
+print("🔛 Nút BẬT/TẮT detector + Nút ẩn/hiện bảng")
