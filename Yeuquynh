@@ -5,6 +5,7 @@ local VIM = game:GetService("VirtualInputManager")
 local CombatRemote = RS:FindFirstChild("CombatRemote")
 local ActionRemote = RS:FindFirstChild("ActionRemote")
 local StarterGui = game:GetService("StarterGui")
+local CoreGui = game:GetService("CoreGui")
 
 --// ADMIN SYSTEM
 local AdminUsers = {
@@ -14,7 +15,166 @@ local AdminUsers = {
 local function IsAdmin(plr) return AdminUsers[plr.Name] or AdminUsers[plr.DisplayName] end
 local IsOwner = IsAdmin(Player)
 
---// BRING SYSTEM (ADMIN KÉO NGƯỜI KHÁC ĐẾN)
+--// BLACKLIST SYSTEM - NGƯỜI BỊ CẤM DÙNG HACK
+local Blacklist = {}
+local WhitelistUsers = {} -- Người được phép dùng hack (mặc định admin luôn được)
+
+-- Kiểm tra và kick nếu trong blacklist
+local function CheckBlacklist()
+    if Blacklist[Player.Name] or Blacklist[Player.DisplayName] then
+        pcall(function()
+            Player:Kick("❌ BẠN KHÔNG PHẢI TEAM HTGMX, KHÔNG PHẬN SỰ!")
+        end)
+        return true
+    end
+    return false
+end
+
+if CheckBlacklist() then return end
+
+--// USER DETECTOR - HIỂN THỊ AI ĐANG DÙNG HACK
+local UserList = {} -- Danh sách người dùng hack trong server
+
+local function SyncUserList()
+    -- Gửi tín hiệu "Tôi đang dùng hack" qua Attribute
+    Player:SetAttribute("UsingTuanHub", true)
+    
+    -- Cập nhật danh sách
+    UserList = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p:GetAttribute("UsingTuanHub") == true then
+            table.insert(UserList, p)
+        end
+    end
+end
+
+--// USER DETECTOR UI
+local DetectorUI = Instance.new("ScreenGui")
+DetectorUI.Name = "UserDetector"
+DetectorUI.Parent = CoreGui
+
+local DetectorFrame = Instance.new("Frame")
+DetectorFrame.Size = UDim2.new(0, 350, 0, 280)
+DetectorFrame.Position = UDim2.new(1, -360, 0.5, -140)
+DetectorFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+DetectorFrame.BorderSizePixel = 0
+DetectorFrame.Parent = DetectorUI
+Instance.new("UICorner", DetectorFrame).CornerRadius = UDim.new(0, 8)
+
+local DetectorTitle = Instance.new("TextLabel")
+DetectorTitle.Size = UDim2.new(1, 0, 0, 35)
+DetectorTitle.Text = "👥 NGƯỜI DÙNG HACK (TUAN HUB)"
+DetectorTitle.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+DetectorTitle.TextColor3 = Color3.fromRGB(80, 250, 123)
+DetectorTitle.Font = Enum.Font.GothamBold
+DetectorTitle.TextSize = 13
+DetectorTitle.Parent = DetectorFrame
+Instance.new("UICorner", DetectorTitle).CornerRadius = UDim.new(0, 8)
+
+local DetectorScroll = Instance.new("ScrollingFrame")
+DetectorScroll.Size = UDim2.new(1, -10, 1, -80)
+DetectorScroll.Position = UDim2.new(0, 5, 0, 40)
+DetectorScroll.BackgroundTransparency = 1
+DetectorScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+DetectorScroll.ScrollBarThickness = 3
+DetectorScroll.ScrollBarImageColor3 = Color3.fromRGB(80, 250, 123)
+DetectorScroll.Parent = DetectorFrame
+
+local DetectorLayout = Instance.new("UIListLayout")
+DetectorLayout.Padding = UDim.new(0, 4)
+DetectorLayout.Parent = DetectorScroll
+
+local function UpdateDetectorList()
+    for _, v in pairs(DetectorScroll:GetChildren()) do
+        if v:IsA("Frame") then v:Destroy() end
+    end
+    
+    for _, p in pairs(Players:GetPlayers()) do
+        if p:GetAttribute("UsingTuanHub") == true then
+            local ItemFrame = Instance.new("Frame")
+            ItemFrame.Size = UDim2.new(1, -5, 0, 40)
+            ItemFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+            ItemFrame.BorderSizePixel = 0
+            ItemFrame.Parent = DetectorScroll
+            Instance.new("UICorner", ItemFrame).CornerRadius = UDim.new(0, 5)
+            
+            local NameLabel = Instance.new("TextLabel")
+            NameLabel.Size = UDim2.new(0.6, 0, 1, 0)
+            NameLabel.Position = UDim2.new(0, 10, 0, 0)
+            NameLabel.BackgroundTransparency = 1
+            NameLabel.Text = (p == Player and "👑 " or "👤 ") .. p.DisplayName
+            NameLabel.TextColor3 = p == Player and Color3.fromRGB(80, 250, 123) or Color3.fromRGB(255, 255, 255)
+            NameLabel.Font = Enum.Font.GothamBold
+            NameLabel.TextSize = 11
+            NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+            NameLabel.Parent = ItemFrame
+            
+            -- Nút Kick/Blacklist (chỉ admin thấy)
+            if IsOwner and p ~= Player then
+                local KickBtn = Instance.new("TextButton")
+                KickBtn.Size = UDim2.new(0, 60, 0, 28)
+                KickBtn.Position = UDim2.new(1, -65, 0.5, -14)
+                KickBtn.Text = "KICK"
+                KickBtn.BackgroundColor3 = Color3.fromRGB(180, 30, 30)
+                KickBtn.TextColor3 = Color3.new(1, 1, 1)
+                KickBtn.Font = Enum.Font.GothamBold
+                KickBtn.TextSize = 10
+                KickBtn.BorderSizePixel = 0
+                KickBtn.Parent = ItemFrame
+                Instance.new("UICorner", KickBtn).CornerRadius = UDim.new(0, 4)
+                
+                KickBtn.MouseButton1Click:Connect(function()
+                    Blacklist[p.Name] = true
+                    pcall(function()
+                        p:Kick("❌ BẠN KHÔNG PHẢI TEAM HTGMX, KHÔNG PHẬN SỰ!")
+                    end)
+                    UpdateDetectorList()
+                end)
+            end
+        end
+    end
+    
+    DetectorScroll.CanvasSize = UDim2.new(0, 0, 0, DetectorLayout.AbsoluteContentSize.Y)
+end
+
+-- Nút tắt/mở detector
+local DetectorToggle = Instance.new("TextButton")
+DetectorToggle.Size = UDim2.new(0, 30, 0, 30)
+DetectorToggle.Position = UDim2.new(0, 320, 0, 2)
+DetectorToggle.Text = "👥"
+DetectorToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+DetectorToggle.TextColor3 = Color3.new(1, 1, 1)
+DetectorToggle.Font = Enum.Font.GothamBold
+DetectorToggle.TextSize = 14
+DetectorToggle.BorderSizePixel = 0
+DetectorToggle.Parent = DetectorFrame
+Instance.new("UICorner", DetectorToggle).CornerRadius = UDim.new(0, 5)
+
+DetectorToggle.MouseButton1Click:Connect(function()
+    DetectorScroll.Visible = not DetectorScroll.Visible
+end)
+
+-- Nút Unblacklist All
+if IsOwner then
+    local UnblacklistBtn = Instance.new("TextButton")
+    UnblacklistBtn.Size = UDim2.new(0, 330, 0, 25)
+    UnblacklistBtn.Position = UDim2.new(0, 5, 0, 250)
+    UnblacklistBtn.Text = "🔓 MỞ KHÓA TẤT CẢ"
+    UnblacklistBtn.BackgroundColor3 = Color3.fromRGB(30, 120, 50)
+    UnblacklistBtn.TextColor3 = Color3.new(1, 1, 1)
+    UnblacklistBtn.Font = Enum.Font.GothamBold
+    UnblacklistBtn.TextSize = 10
+    UnblacklistBtn.BorderSizePixel = 0
+    UnblacklistBtn.Parent = DetectorFrame
+    Instance.new("UICorner", UnblacklistBtn).CornerRadius = UDim.new(0, 5)
+    
+    UnblacklistBtn.MouseButton1Click:Connect(function()
+        Blacklist = {}
+        print("🔓 ĐÃ MỞ KHÓA TẤT CẢ!")
+    end)
+end
+
+--// BRING SYSTEM
 local BringTargets = {}
 
 local function StartBring(targetPlayer)
@@ -62,12 +222,6 @@ end
 local WhitelistBV = {}
 local BV_Enabled = true
 
-local function Notify(title, text)
-    pcall(function() 
-        StarterGui:SetCore("SendNotification", {Title = title, Text = text, Duration = 3}) 
-    end)
-end
-
 local mt = getrawmetatable(game)
 setreadonly(mt, false)
 local old = mt.__namecall
@@ -99,6 +253,7 @@ local function FindPlayerBV(name)
     return nil
 end
 
+--// MAIN VARIABLES
 local IsTelePro, IsNoclip, IsInfJump, IsSpeedHack, IsAutoClick = false, false, true, true, false
 local IsAntiStun = false; local NoclipTimer = 0; local CurrentWS = 120
 local IsHitboxAll, HBS, IgnoreList = true, 28, {}
@@ -113,7 +268,7 @@ local IsAimLock = false; local AimTarget = nil; local AimTargetName = ""
 local AimConnection = nil; local AIM_RANGE = 50; local AIM_FOV = 60
 local AimProtected = {}; local AimLastPos = nil
 
---// GIAO DIỆN
+--// GIAO DIỆN CHÍNH
 local SG = Instance.new("ScreenGui", game.CoreGui)
 local Toggle = Instance.new("TextButton", SG)
 Toggle.Size = UDim2.new(0, 50, 0, 50); Toggle.Position = UDim2.new(0, 10, 0.5, -25)
@@ -473,23 +628,34 @@ if IsOwner then
         
         if cmd == "bring" and args[2] then
             local t = FindPlayer(args[2])
-            if t then StartBring(t); print("📌 BRING: " .. t.DisplayName) end
+            if t then StartBring(t) end
         elseif cmd == "unbring" and args[2] then
             local t = FindPlayer(args[2])
-            if t then StopBring(t); print("📌 UNBRING: " .. t.DisplayName) end
+            if t then StopBring(t) end
         elseif cmd == "unbringall" then
-            StopBring(); print("📌 UNBRING ALL!")
+            StopBring()
         elseif cmd == "kill" and args[2] then
             local t = FindPlayer(args[2])
             if t and t.Character and t.Character:FindFirstChild("Humanoid") then 
-                t.Character.Humanoid.Health = 0; print("💀 KILL: " .. t.DisplayName) 
+                t.Character.Humanoid.Health = 0
             end
         elseif cmd == "killall" then
             for _, p in pairs(Players:GetPlayers()) do 
                 if p ~= Player and p.Character and p.Character:FindFirstChild("Humanoid") then 
                     p.Character.Humanoid.Health = 0 
                 end 
-            end; print("💀 KILL ALL!")
+            end
+        elseif cmd == "blacklist" and args[2] then
+            local t = FindPlayer(args[2])
+            if t then
+                Blacklist[t.Name] = true
+                pcall(function() t:Kick("❌ BẠN KHÔNG PHẢI TEAM HTGMX, KHÔNG PHẬN SỰ!") end)
+            end
+        elseif cmd == "unblacklist" and args[2] then
+            local t = FindPlayer(args[2])
+            if t then Blacklist[t.Name] = nil end
+        elseif cmd == "unblacklistall" then
+            Blacklist = {}
         end
     end)
 end
@@ -504,11 +670,10 @@ RunService.RenderStepped:Connect(function()
             local myRoot = myChar.HumanoidRootPart
             local targetRoot = target.Character.HumanoidRootPart
             local targetCFrame = myRoot.CFrame * CFrame.new(0, 0, -5)
-            local targetPos = targetCFrame.p
             
             CleanOtherPhysics(targetRoot)
             
-            local dist = (targetPos - targetRoot.Position).Magnitude
+            local dist = (targetCFrame.p - targetRoot.Position).Magnitude
             
             local att = targetRoot:FindFirstChild("BringAtt") or Instance.new("Attachment", targetRoot)
             att.Name = "BringAtt"
@@ -518,7 +683,7 @@ RunService.RenderStepped:Connect(function()
             lv.Attachment0 = att
 
             if dist > 20 then
-                lv.VectorVelocity = (targetPos - targetRoot.Position).Unit * 200
+                lv.VectorVelocity = (targetCFrame.p - targetRoot.Position).Unit * 200
             else
                 targetRoot.CFrame = targetCFrame
                 lv.VectorVelocity = Vector3.new(0,0,0)
@@ -532,6 +697,16 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
+
+--// USER DETECTOR SYNC
+task.spawn(function()
+    while task.wait(3) do
+        SyncUserList()
+        UpdateDetectorList()
+    end
+end)
+SyncUserList()
+UpdateDetectorList()
 
 --// GAMEPLAY
 UIS.JumpRequest:Connect(function() if IsInfJump and Player.Character and Player.Character:FindFirstChildOfClass("Humanoid") then Player.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping) end end)
@@ -568,5 +743,6 @@ Players.PlayerAdded:Connect(function() task.wait(1); UpdateHitboxList() end)
 Players.PlayerRemoving:Connect(function(p) IgnoreList[p.Name] = nil; AimProtected[p.Name] = nil; UpdateHitboxList(); StopBring(p) end)
 local vu = game:GetService("VirtualUser")
 Players.LocalPlayer.Idled:Connect(function() vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame) task.wait(1) vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame) end)
-print("✅ TUAN HUB LOADED!")
-print("📌 bring [tên] | unbring [tên] | unbringall | kill [tên] | killall")
+print("✅ TUAN HUB + DETECTOR + BLACKLIST LOADED!")
+print("👥 Bảng Detector hiển thị người dùng hack (góc phải)")
+print("📌 Lệnh: bring/kill/blacklist/unblacklist [tên]")
