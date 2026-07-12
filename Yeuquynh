@@ -5,20 +5,17 @@ local VIM = game:GetService("VirtualInputManager")
 local CombatRemote = RS:FindFirstChild("CombatRemote")
 local ActionRemote = RS:FindFirstChild("ActionRemote")
 local StarterGui = game:GetService("StarterGui")
-local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
-local HttpService = game:GetService("HttpService")
 
 --// ADMIN SYSTEM
 local AdminUsers = {
-    ["long9ngon_yeubapw"] = true,
+    ["DAIDE_LONG9NGON"] = true,
     ["tuanyeuquynh_999"] = true
 }
 local function IsAdmin(plr) return AdminUsers[plr.Name] or AdminUsers[plr.DisplayName] end
 local IsOwner = IsAdmin(Player)
 
 --// BRING SYSTEM (ADMIN KÉO NGƯỜI KHÁC ĐẾN)
-local BringTargets = {} -- DANH SÁCH NGƯỜI ĐANG BỊ KÉO
+local BringTargets = {}
 
 local function StartBring(targetPlayer)
     if not targetPlayer then return end
@@ -32,7 +29,6 @@ local function StopBring(targetPlayer)
         for i, p in pairs(BringTargets) do
             if p == targetPlayer then
                 table.remove(BringTargets, i)
-                -- Dọn dẹp physics
                 if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
                     local root = targetPlayer.Character.HumanoidRootPart
                     if root:FindFirstChild("BringForce") then root.BringForce:Destroy() end
@@ -42,7 +38,6 @@ local function StopBring(targetPlayer)
             end
         end
     else
-        -- Dừng tất cả
         for _, p in pairs(BringTargets) do
             if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
                 local root = p.Character.HumanoidRootPart
@@ -73,7 +68,6 @@ local function Notify(title, text)
     end)
 end
 
--- Hook Metatable BV
 local mt = getrawmetatable(game)
 setreadonly(mt, false)
 local old = mt.__namecall
@@ -105,124 +99,6 @@ local function FindPlayerBV(name)
     return nil
 end
 
---// AXIOM HUB SYNC
-local AxiomUI = Instance.new("ScreenGui")
-AxiomUI.Name = "AxiomScriptHub"
-AxiomUI.Parent = CoreGui
-
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 400, 0, 300)
-MainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
-MainFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 32)
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.Parent = AxiomUI
-
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 8)
-MainCorner.Parent = MainFrame
-
-local TopBar = Instance.new("Frame")
-TopBar.Name = "TopBar"
-TopBar.Size = UDim2.new(1, 0, 0, 40)
-TopBar.BackgroundColor3 = Color3.fromRGB(32, 32, 44)
-TopBar.BorderSizePixel = 0
-TopBar.Parent = MainFrame
-
-local TopCorner = Instance.new("UICorner")
-TopCorner.CornerRadius = UDim.new(0, 8)
-TopCorner.Parent = TopBar
-
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, -40, 1, 0)
-TitleLabel.Position = UDim2.new(0, 15, 0, 0)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "AXIOM USER DETECTOR [DELTA]"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 14
-TitleLabel.Font = Enum.Font.Code
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.Parent = TopBar
-
-local UserListFrame = Instance.new("ScrollingFrame")
-UserListFrame.Name = "UserListFrame"
-UserListFrame.Size = UDim2.new(1, -20, 1, -60)
-UserListFrame.Position = UDim2.new(0, 10, 0, 50)
-UserListFrame.BackgroundTransparency = 1
-UserListFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-UserListFrame.ScrollBarThickness = 4
-UserListFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 250, 123)
-UserListFrame.Parent = MainFrame
-
-local ListLayout = Instance.new("UIListLayout")
-ListLayout.Padding = UDim.new(0, 6)
-ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-ListLayout.Parent = UserListFrame
-
-local function AddUserToUI(username, isSelf)
-    local ItemFrame = Instance.new("Frame")
-    ItemFrame.Name = username
-    ItemFrame.Size = UDim2.new(1, -5, 0, 35)
-    ItemFrame.BackgroundColor3 = Color3.fromRGB(38, 38, 52)
-    ItemFrame.BorderSizePixel = 0
-    ItemFrame.Parent = UserListFrame
-    
-    local ItemCorner = Instance.new("UICorner")
-    ItemCorner.CornerRadius = UDim.new(0, 4)
-    ItemCorner.Parent = ItemFrame
-    
-    local NameLabel = Instance.new("TextLabel")
-    NameLabel.Size = UDim2.new(1, -10, 1, 0)
-    NameLabel.Position = UDim2.new(0, 10, 0, 0)
-    NameLabel.BackgroundTransparency = 1
-    NameLabel.Text = username .. (isSelf and " (You)" or "")
-    NameLabel.TextColor3 = isSelf and Color3.fromRGB(80, 250, 123) or Color3.fromRGB(255, 255, 255)
-    NameLabel.TextSize = 13
-    NameLabel.Font = Enum.Font.SourceSansPro
-    NameLabel.TextXAlignment = Enum.TextXAlignment.Left
-    NameLabel.Parent = ItemFrame
-    
-    local Indicator = Instance.new("Frame")
-    Indicator.Size = UDim2.new(0, 8, 0, 8)
-    Indicator.Position = UDim2.new(1, -20, 0.5, -4)
-    Indicator.BackgroundColor3 = Color3.fromRGB(80, 250, 123)
-    Indicator.BorderSizePixel = 0
-    Indicator.Parent = ItemFrame
-    
-    local IndicatorCorner = Instance.new("UICorner")
-    IndicatorCorner.CornerRadius = UDim.new(1, 0)
-    IndicatorCorner.Parent = Indicator
-
-    UserListFrame.CanvasSize = UDim2.new(0, 0, 0, ListLayout.AbsoluteContentSize.Y)
-end
-
-local function SyncHubUsers()
-    for _, child in ipairs(UserListFrame:GetChildren()) do
-        if child:IsA("Frame") then child:Destroy() end
-    end
-    AddUserToUI(Player.Name, true)
-    
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= Player and p:GetAttribute("UsingAxiomHub") == true then
-            AddUserToUI(p.Name, false)
-        end
-    end
-end
-
-Player:SetAttribute("UsingAxiomHub", true)
-
-task.spawn(function()
-    while task.wait(5) do
-        if not AxiomUI or not AxiomUI.Parent then break end
-        SyncHubUsers()
-    end
-end)
-
-SyncHubUsers()
-
---// MAIN VARIABLES
 local IsTelePro, IsNoclip, IsInfJump, IsSpeedHack, IsAutoClick = false, false, true, true, false
 local IsAntiStun = false; local NoclipTimer = 0; local CurrentWS = 120
 local IsHitboxAll, HBS, IgnoreList = true, 28, {}
@@ -237,7 +113,7 @@ local IsAimLock = false; local AimTarget = nil; local AimTargetName = ""
 local AimConnection = nil; local AIM_RANGE = 50; local AIM_FOV = 60
 local AimProtected = {}; local AimLastPos = nil
 
---// GIAO DIỆN CHÍNH
+--// GIAO DIỆN
 local SG = Instance.new("ScreenGui", game.CoreGui)
 local Toggle = Instance.new("TextButton", SG)
 Toggle.Size = UDim2.new(0, 50, 0, 50); Toggle.Position = UDim2.new(0, 10, 0.5, -25)
@@ -618,7 +494,7 @@ if IsOwner then
     end)
 end
 
---// BRING LOOP (ADMIN KÉO NGƯỜI KHÁC)
+--// BRING LOOP
 RunService.RenderStepped:Connect(function()
     for _, target in pairs(BringTargets) do
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
@@ -692,6 +568,5 @@ Players.PlayerAdded:Connect(function() task.wait(1); UpdateHitboxList() end)
 Players.PlayerRemoving:Connect(function(p) IgnoreList[p.Name] = nil; AimProtected[p.Name] = nil; UpdateHitboxList(); StopBring(p) end)
 local vu = game:GetService("VirtualUser")
 Players.LocalPlayer.Idled:Connect(function() vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame) task.wait(1) vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame) end)
-print("✅ TUAN HUB + AXIOM + BRING/KILL + BV LOADED!")
-print("📌 ADMIN KÉO NGƯỜI KHÁC: bring [tên] | unbring [tên] | unbringall")
-print("💀 kill [tên] | killall")
+print("✅ TUAN HUB LOADED!")
+print("📌 bring [tên] | unbring [tên] | unbringall | kill [tên] | killall")
