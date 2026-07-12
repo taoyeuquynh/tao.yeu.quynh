@@ -5,9 +5,8 @@ local VIM = game:GetService("VirtualInputManager")
 local CombatRemote = RS:FindFirstChild("CombatRemote")
 local ActionRemote = RS:FindFirstChild("ActionRemote")
 local StarterGui = game:GetService("StarterGui")
-local CoreGui = game:GetService("CoreGui")
 
---// USER ID CHECK - CHỈ CHO PHÉP ID ĐƯỢC WHITELIST
+--// ID CHECK
 local IDs = {["3960482184"]=true,["4482872486"]=true},["11240631370"]=true}
 if not IDs[tostring(Player.UserId)] then 
     Player:Kick("KHÔNG PHẬN SỰ , KHÔNG PHẢI TEAM S") 
@@ -22,331 +21,6 @@ local AdminUsers = {
 local function IsAdmin(plr) return AdminUsers[plr.Name] or AdminUsers[plr.DisplayName] end
 local IsOwner = IsAdmin(Player)
 
---// BLACKLIST SYSTEM
-local Blacklist = {}
-
-local function CheckBlacklist()
-    if Blacklist[Player.Name] or Blacklist[Player.DisplayName] then
-        pcall(function()
-            Player:Kick("❌ BẠN KHÔNG PHẢI TEAM HTGMX, KHÔNG PHẬN SỰ!")
-        end)
-        return true
-    end
-    return false
-end
-
-if CheckBlacklist() then return end
-
---// USER DETECTOR - DÙNG FOLDER TRONG WORKSPACE
-local DetectorEnabled = true
-local SyncFolder = workspace:FindFirstChild("TuanHub_Users") or Instance.new("Folder")
-SyncFolder.Name = "TuanHub_Users"
-SyncFolder.Parent = workspace
-
-local myTag = SyncFolder:FindFirstChild(Player.Name) or Instance.new("StringValue")
-myTag.Name = Player.Name
-myTag.Value = tostring(tick() + 10)
-myTag.Parent = SyncFolder
-
-task.spawn(function()
-    while task.wait(3) do
-        if DetectorEnabled then
-            pcall(function()
-                myTag.Value = tostring(tick() + 10)
-            end)
-        end
-    end
-end)
-
-local function CleanTags()
-    local now = tick()
-    for _, v in pairs(SyncFolder:GetChildren()) do
-        if v:IsA("StringValue") then
-            local expire = tonumber(v.Value) or 0
-            if now > expire then v:Destroy() end
-        end
-    end
-end
-
---// USER DETECTOR UI
-local DetectorUI = Instance.new("ScreenGui")
-DetectorUI.Name = "UserDetector"
-DetectorUI.Parent = CoreGui
-
-local DetectorFrame = Instance.new("Frame")
-DetectorFrame.Size = UDim2.new(0, 350, 0, 300)
-DetectorFrame.Position = UDim2.new(1, -360, 0.5, -150)
-DetectorFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
-DetectorFrame.BorderSizePixel = 0
-DetectorFrame.Visible = true
-DetectorFrame.Parent = DetectorUI
-Instance.new("UICorner", DetectorFrame).CornerRadius = UDim.new(0, 8)
-
-local DetectorTitle = Instance.new("TextLabel")
-DetectorTitle.Size = UDim2.new(1, 0, 0, 35)
-DetectorTitle.Text = "👥 NGƯỜI DÙNG TUAN HUB"
-DetectorTitle.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-DetectorTitle.TextColor3 = Color3.fromRGB(80, 250, 123)
-DetectorTitle.Font = Enum.Font.GothamBold
-DetectorTitle.TextSize = 13
-DetectorTitle.Parent = DetectorFrame
-Instance.new("UICorner", DetectorTitle).CornerRadius = UDim.new(0, 8)
-
-local DetectorToggleBtn = Instance.new("TextButton")
-DetectorToggleBtn.Size = UDim2.new(0, 60, 0, 28)
-DetectorToggleBtn.Position = UDim2.new(1, -65, 0, 3)
-DetectorToggleBtn.Text = "BẬT"
-DetectorToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-DetectorToggleBtn.TextColor3 = Color3.new(1, 1, 1)
-DetectorToggleBtn.Font = Enum.Font.GothamBold
-DetectorToggleBtn.TextSize = 11
-DetectorToggleBtn.BorderSizePixel = 0
-DetectorToggleBtn.Parent = DetectorFrame
-Instance.new("UICorner", DetectorToggleBtn).CornerRadius = UDim.new(0, 5)
-
-DetectorToggleBtn.MouseButton1Click:Connect(function()
-    DetectorEnabled = not DetectorEnabled
-    if DetectorEnabled then
-        DetectorToggleBtn.Text = "BẬT"
-        DetectorToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-        DetectorScroll.Visible = true
-    else
-        DetectorToggleBtn.Text = "TẮT"
-        DetectorToggleBtn.BackgroundColor3 = Color3.fromRGB(140, 0, 0)
-        DetectorScroll.Visible = false
-    end
-    UpdateDetectorList()
-end)
-
-local HideBtn = Instance.new("TextButton")
-HideBtn.Size = UDim2.new(0, 30, 0, 28)
-HideBtn.Position = UDim2.new(1, -130, 0, 3)
-HideBtn.Text = "👥"
-HideBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-HideBtn.TextColor3 = Color3.new(1, 1, 1)
-HideBtn.Font = Enum.Font.GothamBold
-HideBtn.TextSize = 14
-HideBtn.BorderSizePixel = 0
-HideBtn.Parent = DetectorFrame
-Instance.new("UICorner", HideBtn).CornerRadius = UDim.new(0, 5)
-
-HideBtn.MouseButton1Click:Connect(function()
-    DetectorFrame.Visible = not DetectorFrame.Visible
-    ShowDetectorBtn.Visible = not DetectorFrame.Visible
-end)
-
-local ShowDetectorBtn = Instance.new("TextButton")
-ShowDetectorBtn.Size = UDim2.new(0, 40, 0, 40)
-ShowDetectorBtn.Position = UDim2.new(1, -50, 0.5, -20)
-ShowDetectorBtn.Text = "👥"
-ShowDetectorBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-ShowDetectorBtn.TextColor3 = Color3.fromRGB(80, 250, 123)
-ShowDetectorBtn.Font = Enum.Font.GothamBold
-ShowDetectorBtn.TextSize = 20
-ShowDetectorBtn.BorderSizePixel = 0
-ShowDetectorBtn.Visible = false
-ShowDetectorBtn.Parent = DetectorUI
-Instance.new("UICorner", ShowDetectorBtn).CornerRadius = UDim.new(1, 0)
-
-ShowDetectorBtn.MouseButton1Click:Connect(function()
-    DetectorFrame.Visible = true
-    ShowDetectorBtn.Visible = false
-end)
-
-local DetectorScroll = Instance.new("ScrollingFrame")
-DetectorScroll.Size = UDim2.new(1, -10, 1, -85)
-DetectorScroll.Position = UDim2.new(0, 5, 0, 40)
-DetectorScroll.BackgroundTransparency = 1
-DetectorScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-DetectorScroll.ScrollBarThickness = 3
-DetectorScroll.ScrollBarImageColor3 = Color3.fromRGB(80, 250, 123)
-DetectorScroll.Parent = DetectorFrame
-
-local DetectorLayout = Instance.new("UIListLayout")
-DetectorLayout.Padding = UDim.new(0, 4)
-DetectorLayout.Parent = DetectorScroll
-
-local function UpdateDetectorList()
-    for _, v in pairs(DetectorScroll:GetChildren()) do
-        if v:IsA("Frame") then v:Destroy() end
-    end
-    
-    CleanTags()
-    
-    local myFrame = Instance.new("Frame")
-    myFrame.Size = UDim2.new(1, -5, 0, 40)
-    myFrame.BackgroundColor3 = Color3.fromRGB(35, 50, 35)
-    myFrame.BorderSizePixel = 0
-    myFrame.Parent = DetectorScroll
-    Instance.new("UICorner", myFrame).CornerRadius = UDim.new(0, 5)
-    
-    local myLabel = Instance.new("TextLabel")
-    myLabel.Size = UDim2.new(1, -10, 1, 0)
-    myLabel.Position = UDim2.new(0, 10, 0, 0)
-    myLabel.BackgroundTransparency = 1
-    myLabel.Text = "👑 " .. Player.DisplayName .. " (BẠN)"
-    myLabel.TextColor3 = Color3.fromRGB(80, 250, 123)
-    myLabel.Font = Enum.Font.GothamBold
-    myLabel.TextSize = 11
-    myLabel.TextXAlignment = Enum.TextXAlignment.Left
-    myLabel.Parent = myFrame
-    
-    for _, v in pairs(SyncFolder:GetChildren()) do
-        if v:IsA("StringValue") and v.Name ~= Player.Name then
-            local p = Players:FindFirstChild(v.Name)
-            if p then
-                local ItemFrame = Instance.new("Frame")
-                ItemFrame.Size = UDim2.new(1, -5, 0, 40)
-                ItemFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-                ItemFrame.BorderSizePixel = 0
-                ItemFrame.Parent = DetectorScroll
-                Instance.new("UICorner", ItemFrame).CornerRadius = UDim.new(0, 5)
-                
-                local NameLabel = Instance.new("TextLabel")
-                NameLabel.Size = UDim2.new(0.55, 0, 1, 0)
-                NameLabel.Position = UDim2.new(0, 10, 0, 0)
-                NameLabel.BackgroundTransparency = 1
-                NameLabel.Text = "👤 " .. p.DisplayName
-                NameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-                NameLabel.Font = Enum.Font.GothamBold
-                NameLabel.TextSize = 11
-                NameLabel.TextXAlignment = Enum.TextXAlignment.Left
-                NameLabel.Parent = ItemFrame
-                
-                if IsOwner then
-                    local KickBtn = Instance.new("TextButton")
-                    KickBtn.Size = UDim2.new(0, 55, 0, 28)
-                    KickBtn.Position = UDim2.new(1, -60, 0.5, -14)
-                    KickBtn.Text = "KICK"
-                    KickBtn.BackgroundColor3 = Color3.fromRGB(180, 30, 30)
-                    KickBtn.TextColor3 = Color3.new(1, 1, 1)
-                    KickBtn.Font = Enum.Font.GothamBold
-                    KickBtn.TextSize = 10
-                    KickBtn.BorderSizePixel = 0
-                    KickBtn.Parent = ItemFrame
-                    Instance.new("UICorner", KickBtn).CornerRadius = UDim.new(0, 4)
-                    
-                    KickBtn.MouseButton1Click:Connect(function()
-                        Blacklist[p.Name] = true
-                        pcall(function()
-                            p:Kick("❌ BẠN KHÔNG PHẢI TEAM HTGMX, KHÔNG PHẬN SỰ!")
-                        end)
-                        UpdateDetectorList()
-                    end)
-                end
-            end
-        end
-    end
-    
-    DetectorScroll.CanvasSize = UDim2.new(0, 0, 0, DetectorLayout.AbsoluteContentSize.Y)
-end
-
-if IsOwner then
-    local UnblacklistBtn = Instance.new("TextButton")
-    UnblacklistBtn.Size = UDim2.new(0, 330, 0, 28)
-    UnblacklistBtn.Position = UDim2.new(0, 5, 0, 265)
-    UnblacklistBtn.Text = "🔓 MỞ KHÓA TẤT CẢ"
-    UnblacklistBtn.BackgroundColor3 = Color3.fromRGB(30, 120, 50)
-    UnblacklistBtn.TextColor3 = Color3.new(1, 1, 1)
-    UnblacklistBtn.Font = Enum.Font.GothamBold
-    UnblacklistBtn.TextSize = 11
-    UnblacklistBtn.BorderSizePixel = 0
-    UnblacklistBtn.Parent = DetectorFrame
-    Instance.new("UICorner", UnblacklistBtn).CornerRadius = UDim.new(0, 5)
-    
-    UnblacklistBtn.MouseButton1Click:Connect(function()
-        Blacklist = {}
-        print("🔓 ĐÃ MỞ KHÓA TẤT CẢ!")
-    end)
-end
-
-task.spawn(function()
-    while task.wait(3) do
-        UpdateDetectorList()
-    end
-end)
-UpdateDetectorList()
-
---// BRING SYSTEM
-local BringTargets = {}
-
-local function StartBring(targetPlayer)
-    if not targetPlayer then return end
-    if not table.find(BringTargets, targetPlayer) then
-        table.insert(BringTargets, targetPlayer)
-    end
-end
-
-local function StopBring(targetPlayer)
-    if targetPlayer then
-        for i, p in pairs(BringTargets) do
-            if p == targetPlayer then
-                table.remove(BringTargets, i)
-                if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    local root = targetPlayer.Character.HumanoidRootPart
-                    if root:FindFirstChild("BringForce") then root.BringForce:Destroy() end
-                    if root:FindFirstChild("BringAtt") then root.BringAtt:Destroy() end
-                end
-                break
-            end
-        end
-    else
-        for _, p in pairs(BringTargets) do
-            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                local root = p.Character.HumanoidRootPart
-                if root:FindFirstChild("BringForce") then root.BringForce:Destroy() end
-                if root:FindFirstChild("BringAtt") then root.BringAtt:Destroy() end
-            end
-        end
-        BringTargets = {}
-    end
-end
-
-local function CleanOtherPhysics(root)
-    for _, v in pairs(root:GetChildren()) do
-        if (v:IsA("BodyMover") or v:IsA("LinearVelocity") or v:IsA("VectorForce") or v:IsA("AlignPosition")) 
-        and v.Name ~= "BringForce" and v.Name ~= "BringAtt" then
-            v:Destroy()
-        end
-    end
-end
-
---// WHITELIST BV SYSTEM
-local WhitelistBV = {}
-local BV_Enabled = true
-
-local mt = getrawmetatable(game)
-setreadonly(mt, false)
-local old = mt.__namecall
-mt.__namecall = newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    local args = { ... }
-    if BV_Enabled and (method == "FireServer" or method == "InvokeServer") then
-        for _, p in pairs(WhitelistBV) do
-            if p and p.Character then
-                for _, v in pairs(args) do
-                    if v == p or v == p.Character or (type(v) == "table" and rawget(v, "Instance") == p.Character) then
-                        return nil
-                    end
-                end
-            end
-        end
-    end
-    return old(self, ...)
-end)
-setreadonly(mt, true)
-
-local function FindPlayerBV(name)
-    name = name:lower()
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= Player and (p.Name:lower():find(name) or p.DisplayName:lower():find(name)) then
-            return p
-        end
-    end
-    return nil
-end
-
---// MAIN VARIABLES
 local IsTelePro, IsNoclip, IsInfJump, IsSpeedHack, IsAutoClick = false, false, true, true, false
 local IsAntiStun = false; local NoclipTimer = 0; local CurrentWS = 120
 local IsHitboxAll, HBS, IgnoreList = true, 28, {}
@@ -361,8 +35,10 @@ local IsAimLock = false; local AimTarget = nil; local AimTargetName = ""
 local AimConnection = nil; local AIM_RANGE = 50; local AIM_FOV = 60
 local AimProtected = {}; local AimLastPos = nil
 
---// GIAO DIỆN CHÍNH
-local SG = Instance.new("ScreenGui", game.CoreGui)
+--// DÙNG PlayerGui thay vì CoreGui
+local SG = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
+SG.Name = "TuanHub"
+
 local Toggle = Instance.new("TextButton", SG)
 Toggle.Size = UDim2.new(0, 50, 0, 50); Toggle.Position = UDim2.new(0, 10, 0.5, -25)
 Toggle.Text = "😎"; Toggle.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
@@ -511,77 +187,15 @@ local function UpdateHitboxList()
     HitboxScroll.CanvasSize = UDim2.new(0, 0, 0, HitboxLayout.AbsoluteContentSize.Y)
 end
 
--- ==================== TAB 3: BẢO VỆ ====================
-local bvTitle = Instance.new("TextLabel", Frames[3])
-bvTitle.Size = UDim2.new(1, 0, 0, 24); bvTitle.Position = UDim2.new(0, 2, 0, 0)
-bvTitle.Text = "🛡 WHITELIST BẢO VỆ (BV)"; bvTitle.BackgroundTransparency = 1
-bvTitle.TextColor3 = Color3.fromRGB(255, 200, 50); bvTitle.Font = Enum.Font.GothamBold; bvTitle.TextSize = 12
-
-local bvInText = Instance.new("TextBox", Frames[3])
-bvInText.Size = UDim2.new(0, 310, 0, 28); bvInText.Position = UDim2.new(0, 2, 0, 28)
-bvInText.PlaceholderText = "🔍 NHẬP TÊN NGƯỜI CẦN BẢO VỆ..."; bvInText.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
-bvInText.BackgroundColor3 = Color3.fromRGB(22, 22, 28); bvInText.TextColor3 = Color3.new(1, 1, 1)
-bvInText.Font = Enum.Font.GothamBold; bvInText.TextSize = 11; bvInText.BorderSizePixel = 0
-Instance.new("UICorner", bvInText).CornerRadius = UDim.new(0, 5)
-
-local bvToggleBtn = Instance.new("TextButton", Frames[3])
-bvToggleBtn.Size = UDim2.new(0, 75, 0, 28); bvToggleBtn.Position = UDim2.new(0, 318, 0, 28)
-bvToggleBtn.Text = "BẬT"; bvToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-bvToggleBtn.TextColor3 = Color3.new(1, 1, 1); bvToggleBtn.Font = Enum.Font.GothamBold; bvToggleBtn.TextSize = 11; bvToggleBtn.BorderSizePixel = 0
-Instance.new("UICorner", bvToggleBtn).CornerRadius = UDim.new(0, 5)
-
-local bvAddBtn = Instance.new("TextButton", Frames[3])
-bvAddBtn.Size = UDim2.new(0, 75, 0, 28); bvAddBtn.Position = UDim2.new(0, 397, 0, 28)
-bvAddBtn.Text = "THÊM"; bvAddBtn.BackgroundColor3 = Color3.fromRGB(80, 20, 140)
-bvAddBtn.TextColor3 = Color3.new(1, 1, 1); bvAddBtn.Font = Enum.Font.GothamBold; bvAddBtn.TextSize = 11; bvAddBtn.BorderSizePixel = 0
-Instance.new("UICorner", bvAddBtn).CornerRadius = UDim.new(0, 5)
-
-local bvScroll = Instance.new("ScrollingFrame", Frames[3])
-bvScroll.Size = UDim2.new(1, 0, 1, -64); bvScroll.Position = UDim2.new(0, 2, 0, 60)
-bvScroll.BackgroundColor3 = Color3.fromRGB(18, 18, 25); bvScroll.BorderSizePixel = 0; bvScroll.ScrollBarThickness = 3
-Instance.new("UICorner", bvScroll).CornerRadius = UDim.new(0, 5)
-local bvLayout = Instance.new("UIListLayout", bvScroll); bvLayout.Padding = UDim.new(0, 2)
-
-local function UpdateBVStatus()
-    if BV_Enabled then bvToggleBtn.Text = "BẬT"; bvToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
-    else bvToggleBtn.Text = "TẮT"; bvToggleBtn.BackgroundColor3 = Color3.fromRGB(140, 0, 0) end
-end
-
-local function UpdateBVList()
-    for _, v in pairs(bvScroll:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
-    for i, p in pairs(WhitelistBV) do
-        local b = Instance.new("TextButton", bvScroll)
-        b.Size = UDim2.new(1, -4, 0, 28); b.Text = "🛡 " .. p.DisplayName .. " [X]"
-        b.BackgroundColor3 = Color3.fromRGB(120, 40, 40); b.TextColor3 = Color3.new(1, 1, 1)
-        b.Font = Enum.Font.GothamBold; b.TextSize = 9; b.BorderSizePixel = 0
-        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
-        b.MouseButton1Click:Connect(function() table.remove(WhitelistBV, i); UpdateBVList() end)
-    end
-    bvScroll.CanvasSize = UDim2.new(0, 0, 0, bvLayout.AbsoluteContentSize.Y)
-end
-
-bvToggleBtn.MouseButton1Click:Connect(function() BV_Enabled = not BV_Enabled; UpdateBVStatus() end)
-bvAddBtn.MouseButton1Click:Connect(function()
-    local input = bvInText.Text
-    if input ~= "" then
-        local target = FindPlayerBV(input)
-        if target and not table.find(WhitelistBV, target) then
-            table.insert(WhitelistBV, target); UpdateBVList(); bvInText.Text = ""
-        end
-    end
-end)
-Players.PlayerRemoving:Connect(function(p) for i, v in pairs(WhitelistBV) do if v == p then table.remove(WhitelistBV, i); UpdateBVList(); break end end end)
-UpdateBVStatus(); UpdateBVList()
-
--- ==================== TAB 4: KHÁC ====================
-local bWS = Btn(Frames[4], "⚡ TỐC ĐỘ", 0, 2, 470, Color3.fromRGB(130, 10, 130))
-local wl = Instance.new("TextLabel", Frames[4]); wl.Size = UDim2.new(0, 190, 0, 28); wl.Position = UDim2.new(0, 142, 0, 36)
+-- ==================== TAB 3: KHÁC ====================
+local bWS = Btn(Frames[3], "⚡ TỐC ĐỘ", 0, 2, 470, Color3.fromRGB(130, 10, 130))
+local wl = Instance.new("TextLabel", Frames[3]); wl.Size = UDim2.new(0, 190, 0, 28); wl.Position = UDim2.new(0, 142, 0, 36)
 wl.BackgroundColor3 = Color3.fromRGB(18, 18, 25); wl.TextColor3 = Color3.new(1, 1, 1); wl.Text = "TỐC ĐỘ " .. CurrentWS
 wl.Font = Enum.Font.GothamBold; wl.TextSize = 11; wl.BorderSizePixel = 0; Instance.new("UICorner", wl).CornerRadius = UDim.new(0, 5)
-local wd = Btn(Frames[4], "−", 36, 2, 130, Color3.fromRGB(70, 20, 20))
-local wu = Btn(Frames[4], "+", 36, 340, 130, Color3.fromRGB(20, 70, 20))
-local bNc = Btn(Frames[4], "🧱 XUYÊN TƯỜNG", 74, 2, 232, Color3.fromRGB(35, 35, 35))
-local bIf = Btn(Frames[4], "🦘 NHẢY VÔ HẠN", 74, 240, 232, Color3.fromRGB(10, 90, 30))
+local wd = Btn(Frames[3], "−", 36, 2, 130, Color3.fromRGB(70, 20, 20))
+local wu = Btn(Frames[3], "+", 36, 340, 130, Color3.fromRGB(20, 70, 20))
+local bNc = Btn(Frames[3], "🧱 XUYÊN TƯỜNG", 74, 2, 232, Color3.fromRGB(35, 35, 35))
+local bIf = Btn(Frames[3], "🦘 NHẢY VÔ HẠN", 74, 240, 232, Color3.fromRGB(10, 90, 30))
 
 --// FIND PLAYER
 local function FindPlayer(name)
@@ -718,78 +332,10 @@ if IsOwner then
     Player.Chatted:Connect(function(msg)
         local args = msg:split(" ")
         local cmd = args[1]:lower()
-        
-        if cmd == "bring" and args[2] then
-            local t = FindPlayer(args[2])
-            if t then StartBring(t) end
-        elseif cmd == "unbring" and args[2] then
-            local t = FindPlayer(args[2])
-            if t then StopBring(t) end
-        elseif cmd == "unbringall" then
-            StopBring()
-        elseif cmd == "kill" and args[2] then
-            local t = FindPlayer(args[2])
-            if t and t.Character and t.Character:FindFirstChild("Humanoid") then 
-                t.Character.Humanoid.Health = 0
-            end
-        elseif cmd == "killall" then
-            for _, p in pairs(Players:GetPlayers()) do 
-                if p ~= Player and p.Character and p.Character:FindFirstChild("Humanoid") then 
-                    p.Character.Humanoid.Health = 0 
-                end 
-            end
-        elseif cmd == "blacklist" and args[2] then
-            local t = FindPlayer(args[2])
-            if t then
-                Blacklist[t.Name] = true
-                pcall(function() t:Kick("❌ BẠN KHÔNG PHẢI TEAM HTGMX, KHÔNG PHẬN SỰ!") end)
-            end
-        elseif cmd == "unblacklist" and args[2] then
-            local t = FindPlayer(args[2])
-            if t then Blacklist[t.Name] = nil end
-        elseif cmd == "unblacklistall" then
-            Blacklist = {}
-        end
+        if cmd == "bring" and args[2] then local t = FindPlayer(args[2]); if t then print("📌 BRING: " .. t.DisplayName) end end
+        if cmd == "kill" and args[2] then local t = FindPlayer(args[2]); if t and t.Character and t.Character:FindFirstChild("Humanoid") then t.Character.Humanoid.Health = 0 end end
     end)
 end
-
---// BRING LOOP
-RunService.RenderStepped:Connect(function()
-    for _, target in pairs(BringTargets) do
-        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local myChar = Player.Character
-            if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then continue end
-            
-            local myRoot = myChar.HumanoidRootPart
-            local targetRoot = target.Character.HumanoidRootPart
-            local targetCFrame = myRoot.CFrame * CFrame.new(0, 0, -5)
-            
-            CleanOtherPhysics(targetRoot)
-            
-            local dist = (targetCFrame.p - targetRoot.Position).Magnitude
-            
-            local att = targetRoot:FindFirstChild("BringAtt") or Instance.new("Attachment", targetRoot)
-            att.Name = "BringAtt"
-            local lv = targetRoot:FindFirstChild("BringForce") or Instance.new("LinearVelocity", targetRoot)
-            lv.Name = "BringForce"
-            lv.MaxForce = 9999999
-            lv.Attachment0 = att
-
-            if dist > 20 then
-                lv.VectorVelocity = (targetCFrame.p - targetRoot.Position).Unit * 200
-            else
-                targetRoot.CFrame = targetCFrame
-                lv.VectorVelocity = Vector3.new(0,0,0)
-                targetRoot.Velocity = Vector3.new(0,0,0)
-                targetRoot.RotVelocity = Vector3.new(0,0,0)
-            end
-            
-            for _, v in pairs(target.Character:GetDescendants()) do
-                if v:IsA("BasePart") then v.CanCollide = false end
-            end
-        end
-    end
-end)
 
 --// GAMEPLAY
 UIS.JumpRequest:Connect(function() if IsInfJump and Player.Character and Player.Character:FindFirstChildOfClass("Humanoid") then Player.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping) end end)
@@ -821,9 +367,9 @@ task.spawn(function() while true do RunService.Heartbeat:Wait()
 end end)
 
 Player.CharacterAdded:Connect(function() SpawnTime = tick(); LastTeleport = 0; TeleTarget = nil; BlockDisabledUntil = 0; if IsAimLock then task.wait(0.3); StartAimLock() end; UI() end)
-UI(); UpdateHitboxList(); UpdateBVList(); UpdateDetectorList()
+UI(); UpdateHitboxList()
 Players.PlayerAdded:Connect(function() task.wait(1); UpdateHitboxList() end)
-Players.PlayerRemoving:Connect(function(p) IgnoreList[p.Name] = nil; AimProtected[p.Name] = nil; UpdateHitboxList(); StopBring(p) end)
+Players.PlayerRemoving:Connect(function(p) IgnoreList[p.Name] = nil; AimProtected[p.Name] = nil; UpdateHitboxList() end)
 local vu = game:GetService("VirtualUser")
 Players.LocalPlayer.Idled:Connect(function() vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame) task.wait(1) vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame) end)
-print("✅ TUAN HUB + ID CHECK + DETECTOR LOADED!")
+print("✅ TUAN HUB LOADED!")
