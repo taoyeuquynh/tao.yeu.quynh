@@ -21,7 +21,8 @@ local IDs = {
     ["11213782614"]=true,
     ["11239406623"]=true,
     ["11219585236"]=true,
-    ["2877984206"]=true
+    ["2877984206"]=true,
+    ["11220078943"]=true
 }
 if not IDs[tostring(Player.UserId)] then 
     Player:Kick("KHÔNG PHẬN SỰ,KHÔNG PHẢI TEAM HTGMX") 
@@ -29,7 +30,8 @@ if not IDs[tostring(Player.UserId)] then
 end
 
 --// ADMIN SYSTEM
-local AdminUsers = {"long9ngon_yeubapw"] = true,
+local AdminUsers = {
+    ["long9ngon_yeubapw"] = true,
     ["tuanyeuquynh_999"] = true
 }
 local function IsAdmin(plr) return AdminUsers[plr.Name] or AdminUsers[plr.DisplayName] end
@@ -328,7 +330,7 @@ local AdminLabel = Instance.new("TextLabel", Main)
 AdminLabel.Size = UDim2.new(1, 0, 0, 16); AdminLabel.Position = UDim2.new(0, 0, 1, -18)
 AdminLabel.BackgroundTransparency = 1; AdminLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
 AdminLabel.Font = Enum.Font.GothamBold; AdminLabel.TextSize = 9
-AdminLabel.Text = "👑 ADMIN: DAIDE_LONG9NGON | tuanyeuquynh_999"
+AdminLabel.Text = "👑 ADMIN: long9ngon_yeubapw | tuanyeuquynh_999"
 
 local Tabs, Frames = {}, {}
 local TabNames = {"⚔", "🎯", "🛡", "⚙"}
@@ -720,3 +722,4 @@ Players.PlayerRemoving:Connect(function(p) IgnoreList[p.Name] = nil; AimProtecte
 local vu = game:GetService("VirtualUser")
 Players.LocalPlayer.Idled:Connect(function() vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame) task.wait(1) vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame) end)
 print("✅ TUAN HUB + ID CHECK + DETECTOR LOADED!")
+print("👑 ADMIN: long9ngon_yeubapw | tuanyeuquynh_999")
