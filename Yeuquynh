@@ -22,7 +22,9 @@ local IDs = {
     ["11239406623"]=true,
     ["11219585236"]=true,
     ["2877984206"]=true,
-    ["11220078943"]=true
+    ["11220078943"]=true,
+    ["10385636709"]=true,
+    ["8805892153"]=true
 }
 if not IDs[tostring(Player.UserId)] then 
     Player:Kick("KHÔNG PHẬN SỰ,KHÔNG PHẢI TEAM HTGMX") 
