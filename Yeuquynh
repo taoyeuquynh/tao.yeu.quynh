@@ -35,7 +35,7 @@ end
 --// ADMIN SYSTEM
 local AdminUsers = {
     ["long9ngon_yeubapw"] = true,
-    ["tuanyeuquynh_999"] = true
+    ["xziny35"] = true
 }
 local function IsAdmin(plr) return AdminUsers[plr.Name] or AdminUsers[plr.DisplayName] end
 local IsOwner = IsAdmin(Player)
