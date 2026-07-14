@@ -9,338 +9,831 @@ local CoreGui = game:GetService("CoreGui")
 
 --// ID CHECK
 local IDs = {
-    ["3960482184"]=true, ["4482872486"]=true, ["11240631370"]=true, ["11215891996"]=true,
-    ["11232720713"]=true, ["11249000993"]=true, ["11221127111"]=true, ["11244649808"]=true,
-    ["11214127618"]=true, ["11213782614"]=true, ["11239406623"]=true, ["11219585236"]=true,
-    ["2877984206"]=true, ["11220078943"]=true, ["10385636709"]=true, ["8805892153"]=true,
+    ["3960482184"]=true,
+    ["4482872486"]=true,
+    ["11240631370"]=true,
+    ["11215891996"]=true,
+    ["11232720713"]=true,
+    ["11249000993"]=true,
+    ["11221127111"]=true,
+    ["11244649808"]=true,
+    ["11214127618"]=true,
+    ["11213782614"]=true,
+    ["11239406623"]=true,
+    ["11219585236"]=true,
+    ["2877984206"]=true,
+    ["11220078943"]=true,
+    ["10385636709"]=true,
+    ["8805892153"]=true,
     ["10623306982"]=true
 }
-if not IDs[tostring(Player.UserId)] then Player:Kick("KHÔNG PHẬN SỰ,KHÔNG PHẢI TEAM HTGMX") return end
+if not IDs[tostring(Player.UserId)] then 
+    Player:Kick("KHÔNG PHẬN SỰ,KHÔNG PHẢI TEAM HTGMX") 
+    return 
+end
 
 --// ADMIN SYSTEM
-local AdminUsers = {["long9ngon_yeubapw"]=true,["tuanyeuquynh_999"]=true}
+local AdminUsers = {
+    ["long9ngon_yeubapw"] = true,
+    ["tuanyeuquynh_999"] = true
+}
 local function IsAdmin(plr) return AdminUsers[plr.Name] or AdminUsers[plr.DisplayName] end
 local IsOwner = IsAdmin(Player)
 
---// BLACKLIST
+--// BLACKLIST SYSTEM
 local Blacklist = {}
-if Blacklist[Player.Name] or Blacklist[Player.DisplayName] then Player:Kick("KHÔNG PHẬN SỰ,KHÔNG PHẢI TEAM HTGMX") return end
+
+local function CheckBlacklist()
+    if Blacklist[Player.Name] or Blacklist[Player.DisplayName] then
+        pcall(function() Player:Kick("KHÔNG PHẬN SỰ,KHÔNG PHẢI TEAM HTGMX") end)
+        return true
+    end
+    return false
+end
+
+if CheckBlacklist() then return end
 
 --// ESP SYSTEM
 local ESP_ENABLED = true
 local ESP_Objects = {}
 
-local function CreateESP(t)
-    if not t.Character then return end
-    local h = t.Character:FindFirstChild("Head") if not h then return end
-    local hl = Instance.new("Highlight", t.Character)
-    hl.Name="ESP"; hl.FillColor=Color3.fromRGB(255,50,50); hl.FillTransparency=0.5
-    hl.OutlineColor=Color3.fromRGB(255,255,255); hl.Adornee=t.Character
-    hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop; hl.Enabled=ESP_ENABLED
-    local bb = Instance.new("BillboardGui", h)
-    bb.Name="ESP_BB"; bb.Size=UDim2.new(0,200,0,30); bb.StudsOffset=Vector3.new(0,3,0)
-    bb.AlwaysOnTop=true; bb.Enabled=ESP_ENABLED
-    local nl = Instance.new("TextLabel", bb) nl.Size=UDim2.new(1,0,0,16) nl.BackgroundTransparency=1 nl.Text=t.DisplayName nl.TextColor3=Color3.new(1,1,1) nl.Font=Enum.Font.GothamBold nl.TextSize=12
-    local dl = Instance.new("TextLabel", bb) dl.Size=UDim2.new(1,0,0,14) dl.Position=UDim2.new(0,0,0,16) dl.BackgroundTransparency=1 dl.TextColor3=Color3.fromRGB(255,200,50) dl.Font=Enum.Font.GothamBold dl.TextSize=10
-    local hb = Instance.new("Frame", bb) hb.Size=UDim2.new(1,0,0,3) hb.Position=UDim2.new(0,0,0,29) hb.BackgroundColor3=Color3.fromRGB(50,50,50)
-    local hf = Instance.new("Frame", hb) hf.Size=UDim2.new(1,0,1,0) hf.BackgroundColor3=Color3.fromRGB(0,255,0)
-    table.insert(ESP_Objects,{Target=t,Highlight=hl,Billboard=bb,DistLabel=dl,HealthFill=hf})
+local ESP_ToggleBtn = Instance.new("TextButton", CoreGui)
+ESP_ToggleBtn.Size = UDim2.new(0, 40, 0, 40)
+ESP_ToggleBtn.Position = UDim2.new(1, -100, 0.5, -20)
+ESP_ToggleBtn.Text = "👁"
+ESP_ToggleBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+ESP_ToggleBtn.TextColor3 = Color3.fromRGB(80, 250, 123)
+ESP_ToggleBtn.Font = Enum.Font.GothamBold
+ESP_ToggleBtn.TextSize = 20
+ESP_ToggleBtn.BorderSizePixel = 0
+Instance.new("UICorner", ESP_ToggleBtn).CornerRadius = UDim.new(1, 0)
+
+ESP_ToggleBtn.MouseButton1Click:Connect(function()
+    ESP_ENABLED = not ESP_ENABLED
+    if ESP_ENABLED then
+        ESP_ToggleBtn.TextColor3 = Color3.fromRGB(80, 250, 123)
+        RefreshESP()
+    else
+        ESP_ToggleBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+        ClearAllESP()
+    end
+end)
+
+local function CreateESP(target)
+    if not target.Character then return end
+    local head = target.Character:FindFirstChild("Head")
+    if not head then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_Highlight"
+    highlight.FillColor = Color3.fromRGB(255, 50, 50)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = target.Character
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Enabled = ESP_ENABLED
+    highlight.Parent = target.Character
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESP_Billboard"
+    billboard.Size = UDim2.new(0, 200, 0, 30)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Enabled = ESP_ENABLED
+    billboard.Parent = head
+
+    local nameLabel = Instance.new("TextLabel", billboard)
+    nameLabel.Size = UDim2.new(1, 0, 0, 16)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = target.DisplayName
+    nameLabel.TextColor3 = Color3.new(1, 1, 1)
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextSize = 12
+    nameLabel.TextStrokeTransparency = 0.5
+
+    local distLabel = Instance.new("TextLabel", billboard)
+    distLabel.Size = UDim2.new(1, 0, 0, 14)
+    distLabel.Position = UDim2.new(0, 0, 0, 16)
+    distLabel.BackgroundTransparency = 1
+    distLabel.Text = ""
+    distLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
+    distLabel.Font = Enum.Font.GothamBold
+    distLabel.TextSize = 10
+    distLabel.TextStrokeTransparency = 0.5
+
+    local healthBar = Instance.new("Frame", billboard)
+    healthBar.Size = UDim2.new(1, 0, 0, 3)
+    healthBar.Position = UDim2.new(0, 0, 0, 29)
+    healthBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    healthBar.BorderSizePixel = 0
+
+    local healthFill = Instance.new("Frame", healthBar)
+    healthFill.Size = UDim2.new(1, 0, 1, 0)
+    healthFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    healthFill.BorderSizePixel = 0
+
+    table.insert(ESP_Objects, {
+        Target = target,
+        Highlight = highlight,
+        Billboard = billboard,
+        DistLabel = distLabel,
+        HealthFill = healthFill
+    })
 end
-local function RemoveESP(t) for i,e in pairs(ESP_Objects) do if e.Target==t then e.Highlight:Destroy() e.Billboard:Destroy() table.remove(ESP_Objects,i) break end end if t.Character then pcall(function() t.Character.ESP:Destroy() t.Character.Head.ESP_BB:Destroy() end) end end
-local function ClearAllESP() for _,e in pairs(ESP_Objects) do pcall(function() e.Highlight:Destroy() e.Billboard:Destroy() end) end ESP_Objects={} for _,p in pairs(Players:GetPlayers()) do if p~=Player and p.Character then pcall(function() p.Character.ESP:Destroy() p.Character.Head.ESP_BB:Destroy() end) end end end
-local function RefreshESP() ClearAllESP() if not ESP_ENABLED then return end for _,p in pairs(Players:GetPlayers()) do if p~=Player and p.Character and p.Character:FindFirstChild("Head") then CreateESP(p) end end end
-local function UpdateESP() if not ESP_ENABLED then return end for _,e in pairs(ESP_Objects) do if e.Target.Character and e.Target.Character:FindFirstChild("HumanoidRootPart") and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then local d=(e.Target.Character.HumanoidRootPart.Position-Player.Character.HumanoidRootPart.Position).Magnitude e.DistLabel.Text=math.floor(d).."m" local hp=e.Target.Character.Humanoid.Health/e.Target.Character.Humanoid.MaxHealth e.HealthFill.Size=UDim2.new(hp,0,1,0) e.HealthFill.BackgroundColor3=hp>0.5 and Color3.fromRGB(0,255,0) or hp>0.25 and Color3.fromRGB(255,200,0) or Color3.fromRGB(255,0,0) end end end
+
+local function RemoveESP(target)
+    for i, esp in pairs(ESP_Objects) do
+        if esp.Target == target then
+            if esp.Highlight then esp.Highlight:Destroy() end
+            if esp.Billboard then esp.Billboard:Destroy() end
+            table.remove(ESP_Objects, i)
+            break
+        end
+    end
+    if target.Character then
+        local hl = target.Character:FindFirstChild("ESP_Highlight")
+        if hl then hl:Destroy() end
+        local head = target.Character:FindFirstChild("Head")
+        if head then
+            local bb = head:FindFirstChild("ESP_Billboard")
+            if bb then bb:Destroy() end
+        end
+    end
+end
+
+local function ClearAllESP()
+    for _, esp in pairs(ESP_Objects) do
+        if esp.Highlight then esp.Highlight:Destroy() end
+        if esp.Billboard then esp.Billboard:Destroy() end
+    end
+    ESP_Objects = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= Player and p.Character then
+            local hl = p.Character:FindFirstChild("ESP_Highlight")
+            if hl then hl:Destroy() end
+            local head = p.Character:FindFirstChild("Head")
+            if head then
+                local bb = head:FindFirstChild("ESP_Billboard")
+                if bb then bb:Destroy() end
+            end
+        end
+    end
+end
+
+local function RefreshESP()
+    ClearAllESP()
+    if not ESP_ENABLED then return end
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= Player and p.Character and p.Character:FindFirstChild("Head") then
+            CreateESP(p)
+        end
+    end
+end
+
+local function UpdateESP()
+    if not ESP_ENABLED then return end
+    for _, esp in pairs(ESP_Objects) do
+        if esp.Target.Character and esp.Target.Character:FindFirstChild("Humanoid") and esp.Target.Character:FindFirstChild("HumanoidRootPart") then
+            local myChar = Player.Character
+            if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+                local dist = (esp.Target.Character.HumanoidRootPart.Position - myChar.HumanoidRootPart.Position).Magnitude
+                esp.DistLabel.Text = math.floor(dist) .. "m"
+                local health = esp.Target.Character.Humanoid.Health / esp.Target.Character.Humanoid.MaxHealth
+                esp.HealthFill.Size = UDim2.new(health, 0, 1, 0)
+                if health > 0.5 then esp.HealthFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                elseif health > 0.25 then esp.HealthFill.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+                else esp.HealthFill.BackgroundColor3 = Color3.fromRGB(255, 0, 0) end
+            end
+        end
+    end
+end
 
 --// USER DETECTOR
-local SyncFolder = workspace:FindFirstChild("TuanHub_Users") or Instance.new("Folder", workspace) SyncFolder.Name="TuanHub_Users"
-local myTag = SyncFolder:FindFirstChild(Player.Name) or Instance.new("StringValue", SyncFolder) myTag.Name=Player.Name myTag.Value=tostring(tick()+10)
-task.spawn(function() while task.wait(3) do pcall(function() myTag.Value=tostring(tick()+10) end) end end)
-local DetectorUI = Instance.new("ScreenGui", CoreGui)
-local ShowDetectorBtn = Instance.new("TextButton", DetectorUI) ShowDetectorBtn.Size=UDim2.new(0,40,0,40) ShowDetectorBtn.Position=UDim2.new(1,-50,0.5,-60) ShowDetectorBtn.Text="👥" ShowDetectorBtn.BackgroundColor3=Color3.fromRGB(25,25,30) ShowDetectorBtn.TextColor3=Color3.fromRGB(80,250,123) ShowDetectorBtn.Font=Enum.Font.GothamBold ShowDetectorBtn.TextSize=20 ShowDetectorBtn.BorderSizePixel=0 Instance.new("UICorner",ShowDetectorBtn).CornerRadius=UDim.new(1,0)
-local DetectorFrame = Instance.new("Frame", DetectorUI) DetectorFrame.Size=UDim2.new(0,350,0,300) DetectorFrame.Position=UDim2.new(1,-360,0.5,-150) DetectorFrame.BackgroundColor3=Color3.fromRGB(20,20,28) DetectorFrame.BorderSizePixel=0 DetectorFrame.Visible=false Instance.new("UICorner",DetectorFrame).CornerRadius=UDim.new(0,8)
-ShowDetectorBtn.MouseButton1Click:Connect(function() DetectorFrame.Visible=true end)
-local HideBtn = Instance.new("TextButton", DetectorFrame) HideBtn.Size=UDim2.new(0,30,0,28) HideBtn.Position=UDim2.new(1,-35,0,3) HideBtn.Text="✕" HideBtn.BackgroundColor3=Color3.fromRGB(50,50,60) HideBtn.TextColor3=Color3.new(1,1,1) HideBtn.Font=Enum.Font.GothamBold HideBtn.TextSize=14 HideBtn.BorderSizePixel=0 Instance.new("UICorner",HideBtn).CornerRadius=UDim.new(0,5) HideBtn.MouseButton1Click:Connect(function() DetectorFrame.Visible=false end)
-local DetectorScroll = Instance.new("ScrollingFrame", DetectorFrame) DetectorScroll.Size=UDim2.new(1,-10,1,-45) DetectorScroll.Position=UDim2.new(0,5,0,40) DetectorScroll.BackgroundTransparency=1 DetectorScroll.ScrollBarThickness=3
-local DetectorLayout = Instance.new("UIListLayout", DetectorScroll) DetectorLayout.Padding=UDim.new(0,3)
-task.spawn(function() while task.wait(3) do for _,v in pairs(DetectorScroll:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end for _,v in pairs(SyncFolder:GetChildren()) do if v:IsA("StringValue") and v.Name~=Player.Name and Players:FindFirstChild(v.Name) then local f=Instance.new("Frame",DetectorScroll) f.Size=UDim2.new(1,-5,0,35) f.BackgroundColor3=Color3.fromRGB(35,35,45) Instance.new("UICorner",f).CornerRadius=UDim.new(0,5) local l=Instance.new("TextLabel",f) l.Size=UDim2.new(1,-10,1,0) l.Position=UDim2.new(0,10,0,0) l.BackgroundTransparency=1 l.Text="👤 "..Players:FindFirstChild(v.Name).DisplayName l.TextColor3=Color3.new(1,1,1) l.Font=Enum.Font.GothamBold l.TextSize=10 l.TextXAlignment=Enum.TextXAlignment.Left end end DetectorScroll.CanvasSize=UDim2.new(0,0,0,DetectorLayout.AbsoluteContentSize.Y) end end)
+local DetectorEnabled = true
+local SyncFolder = workspace:FindFirstChild("TuanHub_Users") or Instance.new("Folder")
+SyncFolder.Name = "TuanHub_Users"
+SyncFolder.Parent = workspace
 
---// BRING
-local BringTargets={}
-local function StartBring(t) if t and not table.find(BringTargets,t) then table.insert(BringTargets,t) end end
-local function StopBring(t) if t then for i,p in pairs(BringTargets) do if p==t then table.remove(BringTargets,i) if t.Character and t.Character:FindFirstChild("HumanoidRootPart") then pcall(function() t.Character.HumanoidRootPart.BringForce:Destroy() t.Character.HumanoidRootPart.BringAtt:Destroy() end) end break end end else for _,p in pairs(BringTargets) do if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then pcall(function() p.Character.HumanoidRootPart.BringForce:Destroy() p.Character.HumanoidRootPart.BringAtt:Destroy() end) end end BringTargets={} end end
+local myTag = SyncFolder:FindFirstChild(Player.Name) or Instance.new("StringValue")
+myTag.Name = Player.Name
+myTag.Value = tostring(tick() + 10)
+myTag.Parent = SyncFolder
+
+task.spawn(function()
+    while task.wait(3) do
+        if DetectorEnabled then pcall(function() myTag.Value = tostring(tick() + 10) end) end
+    end
+end)
+
+local function CleanTags()
+    local now = tick()
+    for _, v in pairs(SyncFolder:GetChildren()) do
+        if v:IsA("StringValue") and now > (tonumber(v.Value) or 0) then v:Destroy() end
+    end
+end
+
+--// USER DETECTOR UI
+local DetectorUI = Instance.new("ScreenGui", CoreGui)
+DetectorUI.Name = "UserDetector"
+
+local DetectorFrame = Instance.new("Frame", DetectorUI)
+DetectorFrame.Size = UDim2.new(0, 350, 0, 300)
+DetectorFrame.Position = UDim2.new(1, -360, 0.5, -150)
+DetectorFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+DetectorFrame.BorderSizePixel = 0
+DetectorFrame.Visible = false
+Instance.new("UICorner", DetectorFrame).CornerRadius = UDim.new(0, 8)
+
+local DetectorTitle = Instance.new("TextLabel", DetectorFrame)
+DetectorTitle.Size = UDim2.new(1, 0, 0, 35)
+DetectorTitle.Text = "👥 NGƯỜI DÙNG TUAN HUB"
+DetectorTitle.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+DetectorTitle.TextColor3 = Color3.fromRGB(80, 250, 123)
+DetectorTitle.Font = Enum.Font.GothamBold
+DetectorTitle.TextSize = 13
+Instance.new("UICorner", DetectorTitle).CornerRadius = UDim.new(0, 8)
+
+local DetectorToggleBtn = Instance.new("TextButton", DetectorFrame)
+DetectorToggleBtn.Size = UDim2.new(0, 60, 0, 28)
+DetectorToggleBtn.Position = UDim2.new(1, -65, 0, 3)
+DetectorToggleBtn.Text = "BẬT"
+DetectorToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
+DetectorToggleBtn.TextColor3 = Color3.new(1, 1, 1)
+DetectorToggleBtn.Font = Enum.Font.GothamBold
+DetectorToggleBtn.TextSize = 11
+DetectorToggleBtn.BorderSizePixel = 0
+Instance.new("UICorner", DetectorToggleBtn).CornerRadius = UDim.new(0, 5)
+
+DetectorToggleBtn.MouseButton1Click:Connect(function()
+    DetectorEnabled = not DetectorEnabled
+    if DetectorEnabled then
+        DetectorToggleBtn.Text = "BẬT"; DetectorToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
+    else
+        DetectorToggleBtn.Text = "TẮT"; DetectorToggleBtn.BackgroundColor3 = Color3.fromRGB(140, 0, 0)
+    end
+end)
+
+local HideBtn = Instance.new("TextButton", DetectorFrame)
+HideBtn.Size = UDim2.new(0, 30, 0, 28)
+HideBtn.Position = UDim2.new(1, -130, 0, 3)
+HideBtn.Text = "✕"
+HideBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+HideBtn.TextColor3 = Color3.new(1, 1, 1)
+HideBtn.Font = Enum.Font.GothamBold
+HideBtn.TextSize = 14
+HideBtn.BorderSizePixel = 0
+Instance.new("UICorner", HideBtn).CornerRadius = UDim.new(0, 5)
+HideBtn.MouseButton1Click:Connect(function() DetectorFrame.Visible = false end)
+
+local ShowDetectorBtn = Instance.new("TextButton", DetectorUI)
+ShowDetectorBtn.Size = UDim2.new(0, 40, 0, 40)
+ShowDetectorBtn.Position = UDim2.new(1, -50, 0.5, -20)
+ShowDetectorBtn.Text = "👥"
+ShowDetectorBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+ShowDetectorBtn.TextColor3 = Color3.fromRGB(80, 250, 123)
+ShowDetectorBtn.Font = Enum.Font.GothamBold
+ShowDetectorBtn.TextSize = 20
+ShowDetectorBtn.BorderSizePixel = 0
+Instance.new("UICorner", ShowDetectorBtn).CornerRadius = UDim.new(1, 0)
+ShowDetectorBtn.MouseButton1Click:Connect(function() DetectorFrame.Visible = true end)
+
+local DetectorScroll = Instance.new("ScrollingFrame", DetectorFrame)
+DetectorScroll.Size = UDim2.new(1, -10, 1, -45)
+DetectorScroll.Position = UDim2.new(0, 5, 0, 40)
+DetectorScroll.BackgroundTransparency = 1
+DetectorScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+DetectorScroll.ScrollBarThickness = 3
+DetectorScroll.ScrollBarImageColor3 = Color3.fromRGB(80, 250, 123)
+
+local DetectorLayout = Instance.new("UIListLayout", DetectorScroll)
+DetectorLayout.Padding = UDim.new(0, 3)
+
+local function UpdateDetectorList()
+    for _, v in pairs(DetectorScroll:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
+    CleanTags()
+    for _, v in pairs(SyncFolder:GetChildren()) do
+        if v:IsA("StringValue") and v.Name ~= Player.Name then
+            local p = Players:FindFirstChild(v.Name)
+            if p then
+                local ItemFrame = Instance.new("Frame", DetectorScroll)
+                ItemFrame.Size = UDim2.new(1, -5, 0, 35)
+                ItemFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+                ItemFrame.BorderSizePixel = 0
+                Instance.new("UICorner", ItemFrame).CornerRadius = UDim.new(0, 5)
+                
+                local NameLabel = Instance.new("TextLabel", ItemFrame)
+                NameLabel.Size = UDim2.new(1, -10, 1, 0)
+                NameLabel.Position = UDim2.new(0, 10, 0, 0)
+                NameLabel.BackgroundTransparency = 1
+                NameLabel.Text = "👤 " .. p.DisplayName
+                NameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                NameLabel.Font = Enum.Font.GothamBold
+                NameLabel.TextSize = 10
+                NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+            end
+        end
+    end
+    DetectorScroll.CanvasSize = UDim2.new(0, 0, 0, DetectorLayout.AbsoluteContentSize.Y)
+end
+
+task.spawn(function() while task.wait(3) do UpdateDetectorList() end end)
+
+--// BRING SYSTEM
+local BringTargets = {}
+
+local function StartBring(t) if t and not table.find(BringTargets, t) then table.insert(BringTargets, t) end end
+local function StopBring(t)
+    if t then for i, p in pairs(BringTargets) do if p == t then table.remove(BringTargets, i)
+        if t.Character and t.Character:FindFirstChild("HumanoidRootPart") then
+            local r = t.Character.HumanoidRootPart
+            if r:FindFirstChild("BringForce") then r.BringForce:Destroy() end
+            if r:FindFirstChild("BringAtt") then r.BringAtt:Destroy() end
+        end break end end
+    else for _, p in pairs(BringTargets) do if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+        local r = p.Character.HumanoidRootPart
+        if r:FindFirstChild("BringForce") then r.BringForce:Destroy() end
+        if r:FindFirstChild("BringAtt") then r.BringAtt:Destroy() end
+    end end BringTargets = {} end
+end
+
+local function CleanOtherPhysics(root)
+    for _, v in pairs(root:GetChildren()) do
+        if (v:IsA("BodyMover") or v:IsA("LinearVelocity") or v:IsA("VectorForce") or v:IsA("AlignPosition")) and v.Name ~= "BringForce" and v.Name ~= "BringAtt" then v:Destroy() end
+    end
+end
 
 --// WHITELIST BV
-local WhitelistBV, BV_Enabled = {}, true
-local mt=getrawmetatable(game) setreadonly(mt,false) local old=mt.__namecall
-mt.__namecall=newcclosure(function(self,...) local m=getnamecallmethod() local a={...} if BV_Enabled and (m=="FireServer" or m=="InvokeServer") then for _,p in pairs(WhitelistBV) do if p and p.Character then for _,v in pairs(a) do if v==p or v==p.Character or (type(v)=="table" and rawget(v,"Instance")==p.Character) then return nil end end end end return old(self,...) end) setreadonly(mt,true)
-local function FindPlayerBV(n) n=n:lower() for _,p in ipairs(Players:GetPlayers()) do if p~=Player and (p.Name:lower():find(n) or p.DisplayName:lower():find(n)) then return p end end return nil end
+local WhitelistBV = {}
+local BV_Enabled = true
+local mt = getrawmetatable(game)
+setreadonly(mt, false)
+local old = mt.__namecall
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = { ... }
+    if BV_Enabled and (method == "FireServer" or method == "InvokeServer") then
+        for _, p in pairs(WhitelistBV) do
+            if p and p.Character then for _, v in pairs(args) do if v == p or v == p.Character or (type(v) == "table" and rawget(v, "Instance") == p.Character) then return nil end end end
+        end
+    end
+    return old(self, ...)
+end)
+setreadonly(mt, true)
 
---// MAIN VARS
-local IsTelePro,IsNoclip,IsInfJump,IsSpeedHack,IsAutoClick=false,false,true,true,false
-local IsAntiStun,NoclipTimer,CurrentWS=false,0,120
-local IsHitboxAll,HBS,IgnoreList=true,28,{}
-local IsAutoBlock,BlockDisabledUntil=false,0
-local IsSpinBot,SpinSpeed=false,45
-local IsFastPunch,IsReach,ReachDistance=false,false,15
-local BMode,SpawnTime=1,tick()
-local LastTeleport,TeleDelay,TeleTarget=0,0.3,nil
+local function FindPlayerBV(name)
+    name = name:lower()
+    for _, p in ipairs(Players:GetPlayers()) do if p ~= Player and (p.Name:lower():find(name) or p.DisplayName:lower():find(name)) then return p end end
+    return nil
+end
 
---// AIM LOCK (TỐI ƯU CHO MB + PC)
-local IsAimLock,AimTarget,AimTargetName=false,nil,""
-local AimConnection,AIM_RANGE,AIM_FOV=nil,50,60
-local AimProtected,AimLastPos={},nil
-local AimSmoothness = 0.15 -- ĐỘ MƯỢT CỦA AIM (MB=0.1, PC=0.2)
-local AimPrediction = 0.08 -- DỰ ĐOÁN CHUYỂN ĐỘNG
+--// MAIN VARIABLES
+local IsTelePro, IsNoclip, IsInfJump, IsSpeedHack, IsAutoClick = false, false, true, true, false
+local IsAntiStun = false; local NoclipTimer = 0; local CurrentWS = 120
+local IsHitboxAll, HBS, IgnoreList = true, 28, {}
+local IsAutoBlock = false; local BlockDisabledUntil = 0
+local IsSpinBot = false; local SpinSpeed = 45
+local IsFastPunch, IsReach = false, false; local ReachDistance = 15
+local BMode = 1; local SpawnTime = tick()
+local LastTeleport = 0; local TeleDelay = 0.3; local TeleTarget = nil
+local IsAimLock = false; local AimTarget = nil; local AimTargetName = ""
+local AimConnection = nil; local AIM_RANGE = 50; local AIM_FOV = 60
+local AimProtected = {}; local AimLastPos = nil
 
---// UI
-local SG=Instance.new("ScreenGui",game.CoreGui)
-local Toggle=Instance.new("TextButton",SG) Toggle.Size=UDim2.new(0,50,0,50) Toggle.Position=UDim2.new(0,10,0.5,-25) Toggle.Text="😎" Toggle.BackgroundColor3=Color3.fromRGB(25,25,30) Toggle.TextColor3=Color3.fromRGB(255,200,50) Toggle.Font=Enum.Font.GothamBlack Toggle.TextSize=24 Toggle.Active=true Toggle.Draggable=true Toggle.BorderSizePixel=0 Instance.new("UICorner",Toggle).CornerRadius=UDim.new(1,0)
-local ToggleStroke=Instance.new("UIStroke",Toggle) ToggleStroke.Thickness=2
-local Main=Instance.new("Frame",SG) Main.Size=UDim2.new(0,540,0,350) Main.Position=UDim2.new(0.5,-270,0.5,-175) Main.BackgroundColor3=Color3.fromRGB(12,12,18) Main.Visible=true Main.Active=true Main.Draggable=true Main.BorderSizePixel=0 Instance.new("UICorner",Main).CornerRadius=UDim.new(0,12)
-local MainStroke=Instance.new("UIStroke",Main) MainStroke.Thickness=2
-task.spawn(function() local hue=0 while true do hue=hue+0.004 if hue>1 then hue=0 end local c=Color3.fromHSV(hue,0.9,1) pcall(function() ToggleStroke.Color=c MainStroke.Color=c end) RunService.RenderStepped:Wait() end end)
-local Title=Instance.new("TextLabel",Main) Title.Size=UDim2.new(1,0,0,30) Title.Text="⚡ TUAN HUB" Title.BackgroundTransparency=1 Title.TextColor3=Color3.fromRGB(255,200,50) Title.Font=Enum.Font.GothamBlack Title.TextSize=22
-local AdminLabel=Instance.new("TextLabel",Main) AdminLabel.Size=UDim2.new(1,0,0,16) AdminLabel.Position=UDim2.new(0,0,1,-18) AdminLabel.BackgroundTransparency=1 AdminLabel.TextColor3=Color3.fromRGB(255,200,50) AdminLabel.Font=Enum.Font.GothamBold AdminLabel.TextSize=9 AdminLabel.Text="👑 ADMIN: long9ngon_yeubapw | tuanyeuquynh_999"
+--// GIAO DIỆN CHÍNH
+local SG = Instance.new("ScreenGui", game.CoreGui)
+local Toggle = Instance.new("TextButton", SG)
+Toggle.Size = UDim2.new(0, 50, 0, 50); Toggle.Position = UDim2.new(0, 10, 0.5, -25)
+Toggle.Text = "😎"; Toggle.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+Toggle.TextColor3 = Color3.fromRGB(255, 200, 50); Toggle.Font = Enum.Font.GothamBlack; Toggle.TextSize = 24
+Toggle.Active = true; Toggle.Draggable = true; Toggle.BorderSizePixel = 0
+Instance.new("UICorner", Toggle).CornerRadius = UDim.new(1, 0)
+local ToggleStroke = Instance.new("UIStroke", Toggle); ToggleStroke.Thickness = 2
 
-local Tabs,Frames={},{} local TabNames={"⚔","🎯","🛡","⚙"}
-for i=1,4 do local b=Instance.new("TextButton",Main) b.Size=UDim2.new(0,50,0,50) b.Position=UDim2.new(0,6,0,35+(i-1)*58) b.Text=TabNames[i] b.BackgroundColor3=Color3.fromRGB(100,10,10) b.TextColor3=Color3.fromRGB(255,230,230) b.Font=Enum.Font.GothamBlack b.TextSize=18 b.BorderSizePixel=0 Instance.new("UICorner",b).CornerRadius=UDim.new(0,8) Tabs[i]=b
-local f=Instance.new("Frame",Main) f.Size=UDim2.new(1,-60,1,-42) f.Position=UDim2.new(0,58,0,38) f.Visible=(i==1) f.BackgroundTransparency=1 f.ClipsDescendants=true Frames[i]=f end
-local function Btn(p,t,y,x,w,c) local b=Instance.new("TextButton",p) b.Size=UDim2.new(0,w or 220,0,28) b.Position=UDim2.new(0,x or 2,0,y) b.Text=t b.BackgroundColor3=c b.TextColor3=Color3.new(1,1,1) b.Font=Enum.Font.GothamBold b.TextSize=9 b.BorderSizePixel=0 Instance.new("UICorner",b).CornerRadius=UDim.new(0,5) return b end
+local Main = Instance.new("Frame", SG)
+Main.Size = UDim2.new(0, 540, 0, 350); Main.Position = UDim2.new(0.5, -270, 0.5, -175)
+Main.BackgroundColor3 = Color3.fromRGB(12, 12, 18); Main.Visible = true
+Main.Active = true; Main.Draggable = true; Main.BorderSizePixel = 0
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
+local MainStroke = Instance.new("UIStroke", Main); MainStroke.Thickness = 2
 
--- TAB 1: COMBAT (SCROLL)
-local CombatScroll=Instance.new("ScrollingFrame",Frames[1]) CombatScroll.Size=UDim2.new(1,0,1,0) CombatScroll.BackgroundTransparency=1 CombatScroll.BorderSizePixel=0 CombatScroll.ScrollBarThickness=3 CombatScroll.CanvasSize=UDim2.new(0,0,0,400)
-local CC=Instance.new("Frame",CombatScroll) CC.Size=UDim2.new(1,0,0,400) CC.BackgroundTransparency=1
-local inT=Instance.new("TextBox",CC) inT.Size=UDim2.new(0,470,0,30) inT.Position=UDim2.new(0,2,0,0) inT.Text="" inT.PlaceholderText="🔍 NHẬP TÊN MỤC TIÊU..." inT.PlaceholderColor3=Color3.fromRGB(150,150,150) inT.BackgroundColor3=Color3.fromRGB(22,22,28) inT.TextColor3=Color3.new(1,1,1) inT.Font=Enum.Font.GothamBold inT.TextSize=11 inT.BorderSizePixel=0 inT.ClearTextOnFocus=false Instance.new("UICorner",inT).CornerRadius=UDim.new(0,5)
-inT:GetPropertyChangedSignal("Text"):Connect(function() AimTargetName=inT.Text TeleTarget=nil if IsAimLock then AimTarget=nil AimLastPos=nil end end)
+task.spawn(function() local hue = 0; while true do hue = hue + 0.004; if hue > 1 then hue = 0 end
+    local c = Color3.fromHSV(hue, 0.9, 1); pcall(function() ToggleStroke.Color = c; MainStroke.Color = c end)
+    RunService.RenderStepped:Wait() end end)
 
-local bTele=Btn(CC,"⚡ TELEPORT: TẮT",36,2,232,Color3.fromRGB(140,10,10))
-local bMode=Btn(CC,"🔄 TRƯỚC MẶT",36,240,232,Color3.fromRGB(10,10,140))
-local bAtk=Btn(CC,"💥 IMPACT: TẮT",70,2,232,Color3.fromRGB(120,60,10))
-local bAnti=Btn(CC,"🛡 CHỐNG STUN: TẮT",70,240,232,Color3.fromRGB(10,80,10))
-local bBlock=Btn(CC,"🛡 AUTO BLOCK: TẮT",104,2,175,Color3.fromRGB(80,60,10))
-local bSpin=Btn(CC,"🌀 SPIN: TẮT",104,182,100,Color3.fromRGB(10,60,100))
-local spinMinus=Instance.new("TextButton",CC) spinMinus.Size=UDim2.new(0,32,0,28) spinMinus.Position=UDim2.new(0,286,0,104) spinMinus.Text="−" spinMinus.BackgroundColor3=Color3.fromRGB(40,20,60) spinMinus.TextColor3=Color3.new(1,1,1) spinMinus.Font=Enum.Font.GothamBold spinMinus.TextSize=14 spinMinus.BorderSizePixel=0 Instance.new("UICorner",spinMinus).CornerRadius=UDim.new(0,5)
-local spinLabel=Instance.new("TextLabel",CC) spinLabel.Size=UDim2.new(0,65,0,28) spinLabel.Position=UDim2.new(0,321,0,104) spinLabel.BackgroundColor3=Color3.fromRGB(15,10,25) spinLabel.TextColor3=Color3.fromRGB(200,200,255) spinLabel.Text=SpinSpeed.."°" spinLabel.Font=Enum.Font.GothamBold spinLabel.TextSize=10 spinLabel.BorderSizePixel=0 Instance.new("UICorner",spinLabel).CornerRadius=UDim.new(0,5)
-local spinPlus=Instance.new("TextButton",CC) spinPlus.Size=UDim2.new(0,32,0,28) spinPlus.Position=UDim2.new(0,400,0,104) spinPlus.Text="+" spinPlus.BackgroundColor3=Color3.fromRGB(60,20,80) spinPlus.TextColor3=Color3.new(1,1,1) spinPlus.Font=Enum.Font.GothamBold spinPlus.TextSize=14 spinPlus.BorderSizePixel=0 Instance.new("UICorner",spinPlus).CornerRadius=UDim.new(0,5)
+local Title = Instance.new("TextLabel", Main)
+Title.Size = UDim2.new(1, 0, 0, 30); Title.Text = "⚡ TUAN HUB"
+Title.BackgroundTransparency = 1; Title.TextColor3 = Color3.fromRGB(255, 200, 50)
+Title.Font = Enum.Font.GothamBlack; Title.TextSize = 22
 
-local bFastPunch=Btn(CC,"👊 ĐẤM SIÊU NHANH: TẮT",138,2,232,Color3.fromRGB(150,50,10))
-local bESP=Btn(CC,"👁 ESP: BẬT",138,240,232,Color3.fromRGB(20,120,60))
-local bReach=Btn(CC,"📏 TĂNG TẦM ĐÁNH: TẮT",172,2,160,Color3.fromRGB(100,60,20))
-local rd=Instance.new("TextButton",CC) rd.Size=UDim2.new(0,35,0,28) rd.Position=UDim2.new(0,390,0,172) rd.Text="−" rd.BackgroundColor3=Color3.fromRGB(70,20,20) rd.TextColor3=Color3.new(1,1,1) rd.Font=Enum.Font.GothamBold rd.TextSize=14 rd.BorderSizePixel=0 Instance.new("UICorner",rd).CornerRadius=UDim.new(0,5)
-local ru=Instance.new("TextButton",CC) ru.Size=UDim2.new(0,35,0,28) ru.Position=UDim2.new(0,435,0,172) ru.Text="+" ru.BackgroundColor3=Color3.fromRGB(20,70,20) ru.TextColor3=Color3.new(1,1,1) ru.Font=Enum.Font.GothamBold ru.TextSize=14 ru.BorderSizePixel=0 Instance.new("UICorner",ru).CornerRadius=UDim.new(0,5)
-local rl=Instance.new("TextLabel",CC) rl.Size=UDim2.new(0,220,0,18) rl.Position=UDim2.new(0,125,0,206) rl.BackgroundColor3=Color3.fromRGB(18,13,28) rl.TextColor3=Color3.fromRGB(200,200,200) rl.Text="📏 TẦM: "..ReachDistance.." | 📦 HB: "..HBS rl.Font=Enum.Font.GothamBold rl.TextSize=9 rl.BorderSizePixel=0 Instance.new("UICorner",rl).CornerRadius=UDim.new(0,4)
+local AdminLabel = Instance.new("TextLabel", Main)
+AdminLabel.Size = UDim2.new(1, 0, 0, 16); AdminLabel.Position = UDim2.new(0, 0, 1, -18)
+AdminLabel.BackgroundTransparency = 1; AdminLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
+AdminLabel.Font = Enum.Font.GothamBold; AdminLabel.TextSize = 9
+AdminLabel.Text = "👑 ADMIN: long9ngon_yeubapw | tuanyeuquynh_999"
 
--- AIM LOCK
-local bAim=Btn(CC,"🎯 AIM LOCK: TẮT",228,2,470,Color3.fromRGB(100,0,100))
-local AimInfo=Instance.new("TextLabel",CC) AimInfo.Size=UDim2.new(0,470,0,20) AimInfo.Position=UDim2.new(0,2,0,262) AimInfo.BackgroundColor3=Color3.fromRGB(18,13,28) AimInfo.TextColor3=Color3.fromRGB(200,200,200) AimInfo.Text="🎯 CHƯA CÓ MỤC TIÊU" AimInfo.Font=Enum.Font.GothamBold AimInfo.TextSize=9 AimInfo.BorderSizePixel=0 Instance.new("UICorner",AimInfo).CornerRadius=UDim.new(0,4)
+local Tabs, Frames = {}, {}
+local TabNames = {"⚔", "🎯", "🛡", "⚙"}
 
--- AIM RANGE
-local bAimRangeMinus=Instance.new("TextButton",CC) bAimRangeMinus.Size=UDim2.new(0,32,0,28) bAimRangeMinus.Position=UDim2.new(0,2,0,287) bAimRangeMinus.Text="−" bAimRangeMinus.BackgroundColor3=Color3.fromRGB(40,5,40) bAimRangeMinus.TextColor3=Color3.new(1,1,1) bAimRangeMinus.Font=Enum.Font.GothamBold bAimRangeMinus.TextSize=14 bAimRangeMinus.BorderSizePixel=0 Instance.new("UICorner",bAimRangeMinus).CornerRadius=UDim.new(0,5)
-local bAimRange=Instance.new("TextButton",CC) bAimRange.Size=UDim2.new(0,155,0,28) bAimRange.Position=UDim2.new(0,37,0,287) bAimRange.Text="📏 TẦM: "..AIM_RANGE bAimRange.BackgroundColor3=Color3.fromRGB(60,5,60) bAimRange.TextColor3=Color3.new(1,1,1) bAimRange.Font=Enum.Font.GothamBold bAimRange.TextSize=9 bAimRange.BorderSizePixel=0 Instance.new("UICorner",bAimRange).CornerRadius=UDim.new(0,5)
-local bAimRangePlus=Instance.new("TextButton",CC) bAimRangePlus.Size=UDim2.new(0,32,0,28) bAimRangePlus.Position=UDim2.new(0,195,0,287) bAimRangePlus.Text="+" bAimRangePlus.BackgroundColor3=Color3.fromRGB(40,5,40) bAimRangePlus.TextColor3=Color3.new(1,1,1) bAimRangePlus.Font=Enum.Font.GothamBold bAimRangePlus.TextSize=14 bAimRangePlus.BorderSizePixel=0 Instance.new("UICorner",bAimRangePlus).CornerRadius=UDim.new(0,5)
+for i = 1, 4 do
+    local b = Instance.new("TextButton", Main)
+    b.Size = UDim2.new(0, 50, 0, 50); b.Position = UDim2.new(0, 6, 0, 35 + (i-1)*58)
+    b.Text = TabNames[i]; b.BackgroundColor3 = Color3.fromRGB(100, 10, 10)
+    b.TextColor3 = Color3.fromRGB(255, 230, 230); b.Font = Enum.Font.GothamBlack; b.TextSize = 18
+    b.BorderSizePixel = 0; Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
+    Tabs[i] = b
+    local f = Instance.new("Frame", Main)
+    f.Size = UDim2.new(1, -60, 1, -42); f.Position = UDim2.new(0, 58, 0, 38)
+    f.Visible = (i == 1); f.BackgroundTransparency = 1; f.ClipsDescendants = true
+    Frames[i] = f
+end
 
--- AIM FOV
-local bAimFovMinus=Instance.new("TextButton",CC) bAimFovMinus.Size=UDim2.new(0,32,0,28) bAimFovMinus.Position=UDim2.new(0,235,0,287) bAimFovMinus.Text="−" bAimFovMinus.BackgroundColor3=Color3.fromRGB(40,5,40) bAimFovMinus.TextColor3=Color3.new(1,1,1) bAimFovMinus.Font=Enum.Font.GothamBold bAimFovMinus.TextSize=14 bAimFovMinus.BorderSizePixel=0 Instance.new("UICorner",bAimFovMinus).CornerRadius=UDim.new(0,5)
-local bAimFov=Instance.new("TextButton",CC) bAimFov.Size=UDim2.new(0,155,0,28) bAimFov.Position=UDim2.new(0,270,0,287) bAimFov.Text="👁 FOV: "..AIM_FOV bAimFov.BackgroundColor3=Color3.fromRGB(60,5,60) bAimFov.TextColor3=Color3.new(1,1,1) bAimFov.Font=Enum.Font.GothamBold bAimFov.TextSize=9 bAimFov.BorderSizePixel=0 Instance.new("UICorner",bAimFov).CornerRadius=UDim.new(0,5)
-local bAimFovPlus=Instance.new("TextButton",CC) bAimFovPlus.Size=UDim2.new(0,32,0,28) bAimFovPlus.Position=UDim2.new(0,440,0,287) bAimFovPlus.Text="+" bAimFovPlus.BackgroundColor3=Color3.fromRGB(40,5,40) bAimFovPlus.TextColor3=Color3.new(1,1,1) bAimFovPlus.Font=Enum.Font.GothamBold bAimFovPlus.TextSize=14 bAimFovPlus.BorderSizePixel=0 Instance.new("UICorner",bAimFovPlus).CornerRadius=UDim.new(0,5)
+local function Btn(p, t, y, x, w, c)
+    local b = Instance.new("TextButton", p)
+    b.Size = UDim2.new(0, w or 220, 0, 28); b.Position = UDim2.new(0, x or 2, 0, y)
+    b.Text = t; b.BackgroundColor3 = c; b.TextColor3 = Color3.new(1, 1, 1)
+    b.Font = Enum.Font.GothamBold; b.TextSize = 9; b.BorderSizePixel = 0
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
+    return b
+end
 
--- AIM SMOOTHNESS
-local bAimSmooth=Btn(CC,"🎯 ĐỘ MƯỢT: "..AimSmoothness,322,2,232,Color3.fromRGB(60,30,100))
-local bAimSmoothMinus=Instance.new("TextButton",CC) bAimSmoothMinus.Size=UDim2.new(0,32,0,28) bAimSmoothMinus.Position=UDim2.new(0,240,0,322) bAimSmoothMinus.Text="−" bAimSmoothMinus.BackgroundColor3=Color3.fromRGB(40,20,60) bAimSmoothMinus.TextColor3=Color3.new(1,1,1) bAimSmoothMinus.Font=Enum.Font.GothamBold bAimSmoothMinus.TextSize=14 bAimSmoothMinus.BorderSizePixel=0 Instance.new("UICorner",bAimSmoothMinus).CornerRadius=UDim.new(0,5)
-local bAimSmoothPlus=Instance.new("TextButton",CC) bAimSmoothPlus.Size=UDim2.new(0,32,0,28) bAimSmoothPlus.Position=UDim2.new(0,440,0,322) bAimSmoothPlus.Text="+" bAimSmoothPlus.BackgroundColor3=Color3.fromRGB(60,20,80) bAimSmoothPlus.TextColor3=Color3.new(1,1,1) bAimSmoothPlus.Font=Enum.Font.GothamBold bAimSmoothPlus.TextSize=14 bAimSmoothPlus.BorderSizePixel=0 Instance.new("UICorner",bAimSmoothPlus).CornerRadius=UDim.new(0,5)
+-- ==================== TAB 1: COMBAT ====================
+local inT = Instance.new("TextBox", Frames[1])
+inT.Size = UDim2.new(0, 470, 0, 30); inT.Position = UDim2.new(0, 2, 0, 0); inT.Text = ""
+inT.PlaceholderText = "🔍 NHẬP TÊN MỤC TIÊU..."; inT.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+inT.BackgroundColor3 = Color3.fromRGB(22, 22, 28); inT.TextColor3 = Color3.new(1, 1, 1)
+inT.Font = Enum.Font.GothamBold; inT.TextSize = 11; inT.BorderSizePixel = 0; inT.ClearTextOnFocus = false
+Instance.new("UICorner", inT).CornerRadius = UDim.new(0, 5)
+inT:GetPropertyChangedSignal("Text"):Connect(function() AimTargetName = inT.Text; TeleTarget = nil; if IsAimLock then AimTarget = nil; AimLastPos = nil end end)
 
-local bTeleSpeed=Btn(CC,"⏱ TỐC ĐỘ TELE: "..TeleDelay.."s",356,2,470,Color3.fromRGB(10,60,120))
+local bTele = Btn(Frames[1], "⚡ TELEPORT: TẮT", 36, 2, 232, Color3.fromRGB(140, 10, 10))
+local bMode = Btn(Frames[1], "🔄 TRƯỚC MẶT", 36, 240, 232, Color3.fromRGB(10, 10, 140))
+local bAtk = Btn(Frames[1], "💥 IMPACT: TẮT", 70, 2, 232, Color3.fromRGB(120, 60, 10))
+local bAnti = Btn(Frames[1], "🛡 CHỐNG STUN: TẮT", 70, 240, 232, Color3.fromRGB(10, 80, 10))
+local bBlock = Btn(Frames[1], "🛡 AUTO BLOCK: TẮT", 104, 2, 175, Color3.fromRGB(80, 60, 10))
+local bSpin = Btn(Frames[1], "🌀 SPIN: TẮT", 104, 182, 100, Color3.fromRGB(10, 60, 100))
 
--- TAB 2: HITBOX
-local bHB=Btn(Frames[2],"📦 HITBOX ALL: BẬT",0,2,470,Color3.fromRGB(10,130,30))
-local hl=Instance.new("TextLabel",Frames[2]) hl.Size=UDim2.new(0,190,0,28) hl.Position=UDim2.new(0,142,0,36) hl.BackgroundColor3=Color3.fromRGB(18,18,25) hl.TextColor3=Color3.new(1,1,1) hl.Text="HB "..HBS hl.Font=Enum.Font.GothamBold hl.TextSize=11 hl.BorderSizePixel=0 Instance.new("UICorner",hl).CornerRadius=UDim.new(0,5)
-local hd=Btn(Frames[2],"−",36,2,130,Color3.fromRGB(70,20,20)) local hu=Btn(Frames[2],"+",36,340,130,Color3.fromRGB(20,70,20))
-local HitboxScroll=Instance.new("ScrollingFrame",Frames[2]) HitboxScroll.Size=UDim2.new(1,0,1,-72) HitboxScroll.Position=UDim2.new(0,2,0,68) HitboxScroll.BackgroundColor3=Color3.fromRGB(18,18,25) HitboxScroll.BorderSizePixel=0 HitboxScroll.ScrollBarThickness=3 Instance.new("UICorner",HitboxScroll).CornerRadius=UDim.new(0,5)
-local HitboxLayout=Instance.new("UIListLayout",HitboxScroll) HitboxLayout.Padding=UDim.new(0,2)
-local function UpdateHitboxList() for _,v in pairs(HitboxScroll:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end for _,p in pairs(Players:GetPlayers()) do if p~=Player then local b=Instance.new("TextButton",HitboxScroll) b.Size=UDim2.new(1,-4,0,28) b.Text="👤 "..p.DisplayName..(IgnoreList[p.Name] and " [TẮT]" or " [BẬT]") b.BackgroundColor3=IgnoreList[p.Name] and Color3.fromRGB(150,30,30) or Color3.fromRGB(32,32,38) b.TextColor3=Color3.new(1,1,1) b.Font=Enum.Font.GothamBold b.TextSize=9 b.BorderSizePixel=0 Instance.new("UICorner",b).CornerRadius=UDim.new(0,4) b.MouseButton1Click:Connect(function() IgnoreList[p.Name]=not IgnoreList[p.Name] UpdateHitboxList() end) end end HitboxScroll.CanvasSize=UDim2.new(0,0,0,HitboxLayout.AbsoluteContentSize.Y) end
+local spinMinus = Instance.new("TextButton", Frames[1]); spinMinus.Size = UDim2.new(0, 32, 0, 28); spinMinus.Position = UDim2.new(0, 286, 0, 104)
+spinMinus.Text = "−"; spinMinus.BackgroundColor3 = Color3.fromRGB(40, 20, 60); spinMinus.TextColor3 = Color3.new(1, 1, 1)
+spinMinus.Font = Enum.Font.GothamBold; spinMinus.TextSize = 14; spinMinus.BorderSizePixel = 0; Instance.new("UICorner", spinMinus).CornerRadius = UDim.new(0, 5)
+local spinLabel = Instance.new("TextLabel", Frames[1]); spinLabel.Size = UDim2.new(0, 65, 0, 28); spinLabel.Position = UDim2.new(0, 321, 0, 104)
+spinLabel.BackgroundColor3 = Color3.fromRGB(15, 10, 25); spinLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
+spinLabel.Text = SpinSpeed .. "°"; spinLabel.Font = Enum.Font.GothamBold; spinLabel.TextSize = 10; spinLabel.BorderSizePixel = 0; Instance.new("UICorner", spinLabel).CornerRadius = UDim.new(0, 5)
+local spinPlus = Instance.new("TextButton", Frames[1]); spinPlus.Size = UDim2.new(0, 32, 0, 28); spinPlus.Position = UDim2.new(0, 400, 0, 104)
+spinPlus.Text = "+"; spinPlus.BackgroundColor3 = Color3.fromRGB(60, 20, 80); spinPlus.TextColor3 = Color3.new(1, 1, 1)
+spinPlus.Font = Enum.Font.GothamBold; spinPlus.TextSize = 14; spinPlus.BorderSizePixel = 0; Instance.new("UICorner", spinPlus).CornerRadius = UDim.new(0, 5)
 
--- TAB 3: BẢO VỆ
-local bvTitle=Instance.new("TextLabel",Frames[3]) bvTitle.Size=UDim2.new(1,0,0,24) bvTitle.Position=UDim2.new(0,2,0,0) bvTitle.Text="🛡 WHITELIST BẢO VỆ (BV)" bvTitle.BackgroundTransparency=1 bvTitle.TextColor3=Color3.fromRGB(255,200,50) bvTitle.Font=Enum.Font.GothamBold bvTitle.TextSize=12
-local bvInText=Instance.new("TextBox",Frames[3]) bvInText.Size=UDim2.new(0,310,0,28) bvInText.Position=UDim2.new(0,2,0,28) bvInText.PlaceholderText="🔍 NHẬP TÊN NGƯỜI CẦN BẢO VỆ..." bvInText.BackgroundColor3=Color3.fromRGB(22,22,28) bvInText.TextColor3=Color3.new(1,1,1) bvInText.Font=Enum.Font.GothamBold bvInText.TextSize=11 bvInText.BorderSizePixel=0 Instance.new("UICorner",bvInText).CornerRadius=UDim.new(0,5)
-local bvToggleBtn=Instance.new("TextButton",Frames[3]) bvToggleBtn.Size=UDim2.new(0,75,0,28) bvToggleBtn.Position=UDim2.new(0,318,0,28) bvToggleBtn.Text="BẬT" bvToggleBtn.BackgroundColor3=Color3.fromRGB(0,140,0) bvToggleBtn.TextColor3=Color3.new(1,1,1) bvToggleBtn.Font=Enum.Font.GothamBold bvToggleBtn.TextSize=11 bvToggleBtn.BorderSizePixel=0 Instance.new("UICorner",bvToggleBtn).CornerRadius=UDim.new(0,5)
-local bvAddBtn=Instance.new("TextButton",Frames[3]) bvAddBtn.Size=UDim2.new(0,75,0,28) bvAddBtn.Position=UDim2.new(0,397,0,28) bvAddBtn.Text="THÊM" bvAddBtn.BackgroundColor3=Color3.fromRGB(80,20,140) bvAddBtn.TextColor3=Color3.new(1,1,1) bvAddBtn.Font=Enum.Font.GothamBold bvAddBtn.TextSize=11 bvAddBtn.BorderSizePixel=0 Instance.new("UICorner",bvAddBtn).CornerRadius=UDim.new(0,5)
-local bvScroll=Instance.new("ScrollingFrame",Frames[3]) bvScroll.Size=UDim2.new(1,0,1,-64) bvScroll.Position=UDim2.new(0,2,0,60) bvScroll.BackgroundColor3=Color3.fromRGB(18,18,25) bvScroll.BorderSizePixel=0 bvScroll.ScrollBarThickness=3 Instance.new("UICorner",bvScroll).CornerRadius=UDim.new(0,5)
-local bvLayout=Instance.new("UIListLayout",bvScroll) bvLayout.Padding=UDim.new(0,2)
-local function UpdateBVStatus() if BV_Enabled then bvToggleBtn.Text="BẬT" bvToggleBtn.BackgroundColor3=Color3.fromRGB(0,140,0) else bvToggleBtn.Text="TẮT" bvToggleBtn.BackgroundColor3=Color3.fromRGB(140,0,0) end end
-local function UpdateBVList() for _,v in pairs(bvScroll:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end for i,p in pairs(WhitelistBV) do local b=Instance.new("TextButton",bvScroll) b.Size=UDim2.new(1,-4,0,28) b.Text="🛡 "..p.DisplayName.." [X]" b.BackgroundColor3=Color3.fromRGB(120,40,40) b.TextColor3=Color3.new(1,1,1) b.Font=Enum.Font.GothamBold b.TextSize=9 b.BorderSizePixel=0 Instance.new("UICorner",b).CornerRadius=UDim.new(0,4) b.MouseButton1Click:Connect(function() table.remove(WhitelistBV,i) UpdateBVList() end) end bvScroll.CanvasSize=UDim2.new(0,0,0,bvLayout.AbsoluteContentSize.Y) end
-bvToggleBtn.MouseButton1Click:Connect(function() BV_Enabled=not BV_Enabled UpdateBVStatus() end)
-bvAddBtn.MouseButton1Click:Connect(function() local input=bvInText.Text if input~="" then local target=FindPlayerBV(input) if target and not table.find(WhitelistBV,target) then table.insert(WhitelistBV,target) UpdateBVList() bvInText.Text="" end end end)
-Players.PlayerRemoving:Connect(function(p) for i,v in pairs(WhitelistBV) do if v==p then table.remove(WhitelistBV,i) UpdateBVList() break end end end)
-UpdateBVStatus() UpdateBVList()
+local bFastPunch = Btn(Frames[1], "👊 ĐẤM SIÊU NHANH: TẮT", 138, 2, 232, Color3.fromRGB(150, 50, 10))
+local bReach = Btn(Frames[1], "📏 TĂNG TẦM ĐÁNH: TẮT", 138, 240, 160, Color3.fromRGB(100, 60, 20))
+local rd = Instance.new("TextButton", Frames[1]); rd.Size = UDim2.new(0, 35, 0, 28); rd.Position = UDim2.new(0, 403, 0, 138)
+rd.Text = "−"; rd.BackgroundColor3 = Color3.fromRGB(70, 20, 20); rd.TextColor3 = Color3.new(1, 1, 1)
+rd.Font = Enum.Font.GothamBold; rd.TextSize = 14; rd.BorderSizePixel = 0; Instance.new("UICorner", rd).CornerRadius = UDim.new(0, 5)
+local ru = Instance.new("TextButton", Frames[1]); ru.Size = UDim2.new(0, 35, 0, 28); ru.Position = UDim2.new(0, 437, 0, 138)
+ru.Text = "+"; ru.BackgroundColor3 = Color3.fromRGB(20, 70, 20); ru.TextColor3 = Color3.new(1, 1, 1)
+ru.Font = Enum.Font.GothamBold; ru.TextSize = 14; ru.BorderSizePixel = 0; Instance.new("UICorner", ru).CornerRadius = UDim.new(0, 5)
+local rl = Instance.new("TextLabel", Frames[1]); rl.Size = UDim2.new(0, 220, 0, 18); rl.Position = UDim2.new(0, 125, 0, 172)
+rl.BackgroundColor3 = Color3.fromRGB(18, 13, 28); rl.TextColor3 = Color3.fromRGB(200, 200, 200)
+rl.Text = "📏 TẦM: " .. ReachDistance .. " | 📦 HB: " .. HBS; rl.Font = Enum.Font.GothamBold; rl.TextSize = 9; rl.BorderSizePixel = 0; Instance.new("UICorner", rl).CornerRadius = UDim.new(0, 4)
 
--- TAB 4: KHÁC
-local bWS=Btn(Frames[4],"⚡ TỐC ĐỘ",0,2,470,Color3.fromRGB(130,10,130))
-local wl=Instance.new("TextLabel",Frames[4]) wl.Size=UDim2.new(0,190,0,28) wl.Position=UDim2.new(0,142,0,36) wl.BackgroundColor3=Color3.fromRGB(18,18,25) wl.TextColor3=Color3.new(1,1,1) wl.Text="TỐC ĐỘ "..CurrentWS wl.Font=Enum.Font.GothamBold wl.TextSize=11 wl.BorderSizePixel=0 Instance.new("UICorner",wl).CornerRadius=UDim.new(0,5)
-local wd=Btn(Frames[4],"−",36,2,130,Color3.fromRGB(70,20,20)) local wu=Btn(Frames[4],"+",36,340,130,Color3.fromRGB(20,70,20))
-local bNc=Btn(Frames[4],"🧱 XUYÊN TƯỜNG",74,2,232,Color3.fromRGB(35,35,35)) local bIf=Btn(Frames[4],"🦘 NHẢY VÔ HẠN",74,240,232,Color3.fromRGB(10,90,30))
+local bAim = Btn(Frames[1], "🎯 AIM LOCK: TẮT", 194, 2, 470, Color3.fromRGB(100, 0, 100))
+local AimInfo = Instance.new("TextLabel", Frames[1]); AimInfo.Size = UDim2.new(0, 470, 0, 20); AimInfo.Position = UDim2.new(0, 2, 0, 228)
+AimInfo.BackgroundColor3 = Color3.fromRGB(18, 13, 28); AimInfo.TextColor3 = Color3.fromRGB(200, 200, 200)
+AimInfo.Text = "🎯 CHƯA CÓ MỤC TIÊU"; AimInfo.Font = Enum.Font.GothamBold; AimInfo.TextSize = 9; AimInfo.BorderSizePixel = 0; Instance.new("UICorner", AimInfo).CornerRadius = UDim.new(0, 4)
+
+local bAimRangeMinus = Instance.new("TextButton", Frames[1]); bAimRangeMinus.Size = UDim2.new(0, 32, 0, 28); bAimRangeMinus.Position = UDim2.new(0, 2, 0, 253)
+bAimRangeMinus.Text = "−"; bAimRangeMinus.BackgroundColor3 = Color3.fromRGB(40, 5, 40); bAimRangeMinus.TextColor3 = Color3.new(1, 1, 1)
+bAimRangeMinus.Font = Enum.Font.GothamBold; bAimRangeMinus.TextSize = 14; bAimRangeMinus.BorderSizePixel = 0; Instance.new("UICorner", bAimRangeMinus).CornerRadius = UDim.new(0, 5)
+local bAimRange = Instance.new("TextButton", Frames[1]); bAimRange.Size = UDim2.new(0, 155, 0, 28); bAimRange.Position = UDim2.new(0, 37, 0, 253)
+bAimRange.Text = "📏 TẦM: " .. AIM_RANGE; bAimRange.BackgroundColor3 = Color3.fromRGB(60, 5, 60); bAimRange.TextColor3 = Color3.new(1, 1, 1)
+bAimRange.Font = Enum.Font.GothamBold; bAimRange.TextSize = 9; bAimRange.BorderSizePixel = 0; Instance.new("UICorner", bAimRange).CornerRadius = UDim.new(0, 5)
+local bAimRangePlus = Instance.new("TextButton", Frames[1]); bAimRangePlus.Size = UDim2.new(0, 32, 0, 28); bAimRangePlus.Position = UDim2.new(0, 195, 0, 253)
+bAimRangePlus.Text = "+"; bAimRangePlus.BackgroundColor3 = Color3.fromRGB(40, 5, 40); bAimRangePlus.TextColor3 = Color3.new(1, 1, 1)
+bAimRangePlus.Font = Enum.Font.GothamBold; bAimRangePlus.TextSize = 14; bAimRangePlus.BorderSizePixel = 0; Instance.new("UICorner", bAimRangePlus).CornerRadius = UDim.new(0, 5)
+
+local bAimFovMinus = Instance.new("TextButton", Frames[1]); bAimFovMinus.Size = UDim2.new(0, 32, 0, 28); bAimFovMinus.Position = UDim2.new(0, 235, 0, 253)
+bAimFovMinus.Text = "−"; bAimFovMinus.BackgroundColor3 = Color3.fromRGB(40, 5, 40); bAimFovMinus.TextColor3 = Color3.new(1, 1, 1)
+bAimFovMinus.Font = Enum.Font.GothamBold; bAimFovMinus.TextSize = 14; bAimFovMinus.BorderSizePixel = 0; Instance.new("UICorner", bAimFovMinus).CornerRadius = UDim.new(0, 5)
+local bAimFov = Instance.new("TextButton", Frames[1]); bAimFov.Size = UDim2.new(0, 155, 0, 28); bAimFov.Position = UDim2.new(0, 270, 0, 253)
+bAimFov.Text = "👁 FOV: " .. AIM_FOV; bAimFov.BackgroundColor3 = Color3.fromRGB(60, 5, 60); bAimFov.TextColor3 = Color3.new(1, 1, 1)
+bAimFov.Font = Enum.Font.GothamBold; bAimFov.TextSize = 9; bAimFov.BorderSizePixel = 0; Instance.new("UICorner", bAimFov).CornerRadius = UDim.new(0, 5)
+local bAimFovPlus = Instance.new("TextButton", Frames[1]); bAimFovPlus.Size = UDim2.new(0, 32, 0, 28); bAimFovPlus.Position = UDim2.new(0, 440, 0, 253)
+bAimFovPlus.Text = "+"; bAimFovPlus.BackgroundColor3 = Color3.fromRGB(40, 5, 40); bAimFovPlus.TextColor3 = Color3.new(1, 1, 1)
+bAimFovPlus.Font = Enum.Font.GothamBold; bAimFovPlus.TextSize = 14; bAimFovPlus.BorderSizePixel = 0; Instance.new("UICorner", bAimFovPlus).CornerRadius = UDim.new(0, 5)
+
+local bTeleSpeed = Btn(Frames[1], "⏱ TỐC ĐỘ TELE: " .. TeleDelay .. "s", 288, 2, 470, Color3.fromRGB(10, 60, 120))
+
+-- ==================== TAB 2: HITBOX ====================
+local bHB = Btn(Frames[2], "📦 HITBOX ALL: BẬT", 0, 2, 470, Color3.fromRGB(10, 130, 30))
+local hl = Instance.new("TextLabel", Frames[2]); hl.Size = UDim2.new(0, 190, 0, 28); hl.Position = UDim2.new(0, 142, 0, 36)
+hl.BackgroundColor3 = Color3.fromRGB(18, 18, 25); hl.TextColor3 = Color3.new(1, 1, 1); hl.Text = "HB " .. HBS
+hl.Font = Enum.Font.GothamBold; hl.TextSize = 11; hl.BorderSizePixel = 0; Instance.new("UICorner", hl).CornerRadius = UDim.new(0, 5)
+local hd = Btn(Frames[2], "−", 36, 2, 130, Color3.fromRGB(70, 20, 20))
+local hu = Btn(Frames[2], "+", 36, 340, 130, Color3.fromRGB(20, 70, 20))
+local HitboxScroll = Instance.new("ScrollingFrame", Frames[2]); HitboxScroll.Size = UDim2.new(1, 0, 1, -72); HitboxScroll.Position = UDim2.new(0, 2, 0, 68)
+HitboxScroll.BackgroundColor3 = Color3.fromRGB(18, 18, 25); HitboxScroll.BorderSizePixel = 0; HitboxScroll.ScrollBarThickness = 3
+Instance.new("UICorner", HitboxScroll).CornerRadius = UDim.new(0, 5)
+local HitboxLayout = Instance.new("UIListLayout", HitboxScroll); HitboxLayout.Padding = UDim.new(0, 2)
+
+local function UpdateHitboxList()
+    for _, v in pairs(HitboxScroll:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
+    for _, p in pairs(Players:GetPlayers()) do if p ~= Player then
+        local b = Instance.new("TextButton", HitboxScroll); b.Size = UDim2.new(1, -4, 0, 28)
+        b.Text = "👤 " .. p.DisplayName .. (IgnoreList[p.Name] and " [TẮT]" or " [BẬT]")
+        b.BackgroundColor3 = IgnoreList[p.Name] and Color3.fromRGB(150, 30, 30) or Color3.fromRGB(32, 32, 38)
+        b.TextColor3 = Color3.new(1, 1, 1); b.Font = Enum.Font.GothamBold; b.TextSize = 9; b.BorderSizePixel = 0
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
+        b.MouseButton1Click:Connect(function() IgnoreList[p.Name] = not IgnoreList[p.Name]; UpdateHitboxList() end)
+    end end
+    HitboxScroll.CanvasSize = UDim2.new(0, 0, 0, HitboxLayout.AbsoluteContentSize.Y)
+end
+
+-- ==================== TAB 3: BẢO VỆ ====================
+local bvTitle = Instance.new("TextLabel", Frames[3])
+bvTitle.Size = UDim2.new(1, 0, 0, 24); bvTitle.Position = UDim2.new(0, 2, 0, 0)
+bvTitle.Text = "🛡 WHITELIST BẢO VỆ (BV)"; bvTitle.BackgroundTransparency = 1
+bvTitle.TextColor3 = Color3.fromRGB(255, 200, 50); bvTitle.Font = Enum.Font.GothamBold; bvTitle.TextSize = 12
+
+local bvInText = Instance.new("TextBox", Frames[3])
+bvInText.Size = UDim2.new(0, 310, 0, 28); bvInText.Position = UDim2.new(0, 2, 0, 28)
+bvInText.PlaceholderText = "🔍 NHẬP TÊN NGƯỜI CẦN BẢO VỆ..."; bvInText.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+bvInText.BackgroundColor3 = Color3.fromRGB(22, 22, 28); bvInText.TextColor3 = Color3.new(1, 1, 1)
+bvInText.Font = Enum.Font.GothamBold; bvInText.TextSize = 11; bvInText.BorderSizePixel = 0
+Instance.new("UICorner", bvInText).CornerRadius = UDim.new(0, 5)
+
+local bvToggleBtn = Instance.new("TextButton", Frames[3])
+bvToggleBtn.Size = UDim2.new(0, 75, 0, 28); bvToggleBtn.Position = UDim2.new(0, 318, 0, 28)
+bvToggleBtn.Text = "BẬT"; bvToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
+bvToggleBtn.TextColor3 = Color3.new(1, 1, 1); bvToggleBtn.Font = Enum.Font.GothamBold; bvToggleBtn.TextSize = 11; bvToggleBtn.BorderSizePixel = 0
+Instance.new("UICorner", bvToggleBtn).CornerRadius = UDim.new(0, 5)
+
+local bvAddBtn = Instance.new("TextButton", Frames[3])
+bvAddBtn.Size = UDim2.new(0, 75, 0, 28); bvAddBtn.Position = UDim2.new(0, 397, 0, 28)
+bvAddBtn.Text = "THÊM"; bvAddBtn.BackgroundColor3 = Color3.fromRGB(80, 20, 140)
+bvAddBtn.TextColor3 = Color3.new(1, 1, 1); bvAddBtn.Font = Enum.Font.GothamBold; bvAddBtn.TextSize = 11; bvAddBtn.BorderSizePixel = 0
+Instance.new("UICorner", bvAddBtn).CornerRadius = UDim.new(0, 5)
+
+local bvScroll = Instance.new("ScrollingFrame", Frames[3])
+bvScroll.Size = UDim2.new(1, 0, 1, -64); bvScroll.Position = UDim2.new(0, 2, 0, 60)
+bvScroll.BackgroundColor3 = Color3.fromRGB(18, 18, 25); bvScroll.BorderSizePixel = 0; bvScroll.ScrollBarThickness = 3
+Instance.new("UICorner", bvScroll).CornerRadius = UDim.new(0, 5)
+local bvLayout = Instance.new("UIListLayout", bvScroll); bvLayout.Padding = UDim.new(0, 2)
+
+local function UpdateBVStatus()
+    if BV_Enabled then bvToggleBtn.Text = "BẬT"; bvToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
+    else bvToggleBtn.Text = "TẮT"; bvToggleBtn.BackgroundColor3 = Color3.fromRGB(140, 0, 0) end
+end
+
+local function UpdateBVList()
+    for _, v in pairs(bvScroll:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
+    for i, p in pairs(WhitelistBV) do
+        local b = Instance.new("TextButton", bvScroll)
+        b.Size = UDim2.new(1, -4, 0, 28); b.Text = "🛡 " .. p.DisplayName .. " [X]"
+        b.BackgroundColor3 = Color3.fromRGB(120, 40, 40); b.TextColor3 = Color3.new(1, 1, 1)
+        b.Font = Enum.Font.GothamBold; b.TextSize = 9; b.BorderSizePixel = 0
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
+        b.MouseButton1Click:Connect(function() table.remove(WhitelistBV, i); UpdateBVList() end)
+    end
+    bvScroll.CanvasSize = UDim2.new(0, 0, 0, bvLayout.AbsoluteContentSize.Y)
+end
+
+bvToggleBtn.MouseButton1Click:Connect(function() BV_Enabled = not BV_Enabled; UpdateBVStatus() end)
+bvAddBtn.MouseButton1Click:Connect(function()
+    local input = bvInText.Text
+    if input ~= "" then
+        local target = FindPlayerBV(input)
+        if target and not table.find(WhitelistBV, target) then
+            table.insert(WhitelistBV, target); UpdateBVList(); bvInText.Text = ""
+        end
+    end
+end)
+Players.PlayerRemoving:Connect(function(p) for i, v in pairs(WhitelistBV) do if v == p then table.remove(WhitelistBV, i); UpdateBVList(); break end end end)
+UpdateBVStatus(); UpdateBVList()
+
+-- ==================== TAB 4: KHÁC ====================
+local bWS = Btn(Frames[4], "⚡ TỐC ĐỘ", 0, 2, 470, Color3.fromRGB(130, 10, 130))
+local wl = Instance.new("TextLabel", Frames[4]); wl.Size = UDim2.new(0, 190, 0, 28); wl.Position = UDim2.new(0, 142, 0, 36)
+wl.BackgroundColor3 = Color3.fromRGB(18, 18, 25); wl.TextColor3 = Color3.new(1, 1, 1); wl.Text = "TỐC ĐỘ " .. CurrentWS
+wl.Font = Enum.Font.GothamBold; wl.TextSize = 11; wl.BorderSizePixel = 0; Instance.new("UICorner", wl).CornerRadius = UDim.new(0, 5)
+local wd = Btn(Frames[4], "−", 36, 2, 130, Color3.fromRGB(70, 20, 20))
+local wu = Btn(Frames[4], "+", 36, 340, 130, Color3.fromRGB(20, 70, 20))
+local bNc = Btn(Frames[4], "🧱 XUYÊN TƯỜNG", 74, 2, 232, Color3.fromRGB(35, 35, 35))
+local bIf = Btn(Frames[4], "🦘 NHẢY VÔ HẠN", 74, 240, 232, Color3.fromRGB(10, 90, 30))
 
 --// FIND PLAYER
-local function FindPlayer(n) n=n:lower() for _,p in pairs(Players:GetPlayers()) do if p~=Player and (p.Name:lower():find(n) or p.DisplayName:lower():find(n)) then return p end end return nil end
-local function FindTeleTarget() if AimTargetName=="" then return nil end return FindPlayer(AimTargetName) end
+local function FindPlayer(name)
+    name = name:lower()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= Player and (p.Name:lower():find(name) or p.DisplayName:lower():find(name)) then return p end
+    end
+    return nil
+end
 
---// AIM LOCK (TỐI ƯU - LERP MƯỢT)
+local function FindTeleTarget() if AimTargetName == "" then return nil end; return FindPlayer(AimTargetName) end
+
+--// AIM LOCK
 local function GetAimTarget()
-    local c=Player.Character if not c or not c:FindFirstChild("HumanoidRootPart") then return nil end
-    if AimTargetName~="" then local t=FindTeleTarget() if t then return t end end
-    local rp=c.HumanoidRootPart.Position local cam=workspace.CurrentCamera local cp=cam.CFrame.Position local cl=cam.CFrame.LookVector
-    local best,bestScore=nil,-999999
-    for _,pl in ipairs(Players:GetPlayers()) do
-        if pl~=Player and not AimProtected[pl.Name] and pl.Character and pl.Character:FindFirstChild("Humanoid") and pl.Character.Humanoid.Health>0 then
-            local hr=pl.Character:FindFirstChild("HumanoidRootPart") local hd=pl.Character:FindFirstChild("Head")
-            if hr then local tp=hd and hd.Position or (hr.Position+Vector3.new(0,2,0)) local d=(hr.Position-rp).Magnitude
-                if d<AIM_RANGE then local dir=(tp-cp).Unit local a=math.acos(math.clamp(dir:Dot(cl),-1,1))
-                    if a<=math.rad(AIM_FOV) then local s=(2000-d)-(math.deg(a)*10) if s>bestScore then bestScore=s best=pl end end end end end end
+    local char = Player.Character; if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
+    if AimTargetName ~= "" then local t = FindTeleTarget() if t then return t end end
+    local rootPos = char.HumanoidRootPart.Position; local cam = workspace.CurrentCamera; local camPos = cam.CFrame.Position; local camLook = cam.CFrame.LookVector
+    local best = nil; local bestScore = -999999
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= Player and not AimProtected[plr.Name] and plr.Character and plr.Character:FindFirstChild("Humanoid") and plr.Character.Humanoid.Health > 0 then
+            local hrp = plr.Character:FindFirstChild("HumanoidRootPart"); local head = plr.Character:FindFirstChild("Head")
+            if hrp then local tp = head and head.Position or (hrp.Position + Vector3.new(0, 2, 0)); local dist = (hrp.Position - rootPos).Magnitude
+                if dist < AIM_RANGE then local dir = (tp - camPos).Unit; local angle = math.acos(math.clamp(dir:Dot(camLook), -1, 1))
+                    if angle <= math.rad(AIM_FOV) then local score = (2000 - dist) - (math.deg(angle) * 10)
+                        if score > bestScore then bestScore = score; best = plr end end end end end end
     return best
 end
 
 local function AimLockUpdate()
     if not IsAimLock then return end
-    
-    -- Kiểm tra mục tiêu
-    if AimTarget then
-        local v=false
-        if AimTarget.Character and AimTarget.Character:FindFirstChild("Humanoid") and AimTarget.Character.Humanoid.Health>0 then
-            local c=Player.Character
-            if c and c:FindFirstChild("HumanoidRootPart") and AimTarget.Character:FindFirstChild("HumanoidRootPart") then
-                if (AimTarget.Character.HumanoidRootPart.Position-c.HumanoidRootPart.Position).Magnitude<AIM_RANGE then v=true end
-            end
-        end
-        if not v then AimTarget=nil AimLastPos=nil end
-    end
-    if not AimTarget then AimTarget=GetAimTarget() end
-    
-    -- Cập nhật UI
-    if AimTarget then AimInfo.Text="🎯 "..AimTarget.DisplayName AimInfo.TextColor3=Color3.fromRGB(100,255,100)
-    else AimInfo.Text="🔍 ĐANG QUÉT..." AimInfo.TextColor3=Color3.fromRGB(200,200,200) end
-    
-    -- Lock camera với Lerp mượt (tương thích MB + PC)
+    if AimTarget then local valid = false
+        if AimTarget.Character and AimTarget.Character:FindFirstChild("Humanoid") and AimTarget.Character.Humanoid.Health > 0 then
+            local char = Player.Character; if char and char:FindFirstChild("HumanoidRootPart") and AimTarget.Character:FindFirstChild("HumanoidRootPart") then if (AimTarget.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude < AIM_RANGE then valid = true end end end
+        if not valid then AimTarget = nil; AimLastPos = nil end end
+    if not AimTarget then AimTarget = GetAimTarget() end
+    if AimTarget then AimInfo.Text = "🎯 " .. AimTarget.DisplayName; AimInfo.TextColor3 = Color3.fromRGB(100, 255, 100)
+    else AimInfo.Text = "🔍 ĐANG QUÉT..."; AimInfo.TextColor3 = Color3.fromRGB(200, 200, 200) end
     if AimTarget and AimTarget.Character then
-        local hd=AimTarget.Character:FindFirstChild("Head")
-        local hr=AimTarget.Character:FindFirstChild("HumanoidRootPart")
-        local hm=AimTarget.Character:FindFirstChild("Humanoid")
-        
-        local cp=hd and hd.Position or (hr and hr.Position+Vector3.new(0,2,0))
-        if not cp then return end
-        
-        -- Dự đoán chuyển động
-        local v=Vector3.zero
-        if AimLastPos and hr then local dt=0.016 if dt>0 then v=(hr.Position-AimLastPos)/dt end end
-        if hm and hm.MoveDirection.Magnitude>0 then v=hm.MoveDirection*hm.WalkSpeed end
-        local predictedPos=cp+(v*AimPrediction)
-        
-        -- Lerp mượt (không giật)
-        local cam=workspace.CurrentCamera
-        local targetCF=CFrame.lookAt(cam.CFrame.Position,predictedPos)
-        cam.CFrame=cam.CFrame:Lerp(targetCF,AimSmoothness)
-        
-        if hr then AimLastPos=hr.Position end
+        local head = AimTarget.Character:FindFirstChild("Head"); local hrp = AimTarget.Character:FindFirstChild("HumanoidRootPart"); local hum = AimTarget.Character:FindFirstChild("Humanoid")
+        local currentPos = head and head.Position or (hrp and hrp.Position + Vector3.new(0, 2, 0)); if not currentPos then return end
+        local velocity = Vector3.zero; if AimLastPos and hrp then local dt = 0.016; if dt > 0 then velocity = (hrp.Position - AimLastPos) / dt end end
+        if hum and hum.MoveDirection.Magnitude > 0 then velocity = hum.MoveDirection * hum.WalkSpeed end
+        workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, currentPos + (velocity * 0.1))
+        if hrp then AimLastPos = hrp.Position end
     end
 end
 
-local function StartAimLock() IsAimLock=true AimTarget=GetAimTarget() AimLastPos=nil if AimConnection then AimConnection:Disconnect() end AimConnection=RunService.RenderStepped:Connect(AimLockUpdate) end
-local function StopAimLock() IsAimLock=false AimTarget=nil AimLastPos=nil if AimConnection then AimConnection:Disconnect() AimConnection=nil end AimInfo.Text="🎯 CHƯA CÓ MỤC TIÊU" AimInfo.TextColor3=Color3.fromRGB(200,200,200) end
+local function StartAimLock() IsAimLock = true; AimTarget = GetAimTarget(); AimLastPos = nil; if AimConnection then AimConnection:Disconnect() end; AimConnection = RunService.RenderStepped:Connect(AimLockUpdate) end
+local function StopAimLock() IsAimLock = false; AimTarget = nil; AimLastPos = nil; if AimConnection then AimConnection:Disconnect(); AimConnection = nil end; AimInfo.Text = "🎯 CHƯA CÓ MỤC TIÊU"; AimInfo.TextColor3 = Color3.fromRGB(200, 200, 200) end
 
 --// TELEPORT
 local function TeleportToTarget()
-    local c=Player.Character if not c or not c:FindFirstChild("HumanoidRootPart") then return end local hr=c.HumanoidRootPart
-    if not TeleTarget or not TeleTarget.Character or not TeleTarget.Character:FindFirstChild("Humanoid") or TeleTarget.Character.Humanoid.Health<=0 then TeleTarget=FindTeleTarget() end
-    if not TeleTarget and AimTargetName=="" then local n,nd=nil,999 for _,p in pairs(Players:GetPlayers()) do if p~=Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health>0 then local d=(p.Character.HumanoidRootPart.Position-hr.Position).Magnitude if d<nd then n=p nd=d end end end TeleTarget=n end
-    if not TeleTarget or not TeleTarget.Character or not TeleTarget.Character:FindFirstChild("HumanoidRootPart") then return end local tr=TeleTarget.Character.HumanoidRootPart
-    local fp if BMode==1 then fp=tr.Position+(-tr.CFrame.LookVector*2) elseif BMode==2 then fp=tr.Position+(tr.CFrame.LookVector*2) elseif BMode==3 then fp=tr.Position+Vector3.new(0,3,0) elseif BMode==4 then local a=math.random()*math.pi*2 fp=tr.Position+Vector3.new(math.cos(a)*3,0.5,math.sin(a)*3) else local t=tick()*3 fp=tr.Position+Vector3.new(math.cos(t)*3,0.5,math.sin(t)*3) end
-    hr.CFrame=CFrame.new(fp,tr.Position) hr.AssemblyLinearVelocity=Vector3.zero hr.AssemblyAngularVelocity=Vector3.zero
-    for _,v in pairs(c:GetDescendants()) do if v:IsA("BasePart") then v.AssemblyLinearVelocity=Vector3.zero v.AssemblyAngularVelocity=Vector3.zero end end
-    if IsAutoBlock then BlockDisabledUntil=tick()+0.3 end
+    local c = Player.Character; if not c or not c:FindFirstChild("HumanoidRootPart") then return end; local hrp = c.HumanoidRootPart
+    if not TeleTarget or not TeleTarget.Character or not TeleTarget.Character:FindFirstChild("Humanoid") or TeleTarget.Character.Humanoid.Health <= 0 then TeleTarget = FindTeleTarget() end
+    if not TeleTarget and AimTargetName == "" then local nearest, nearestDist = nil, 999
+        for _, p in pairs(Players:GetPlayers()) do if p ~= Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then local dist = (p.Character.HumanoidRootPart.Position - hrp.Position).Magnitude; if dist < nearestDist then nearest = p; nearestDist = dist end end end
+        TeleTarget = nearest end
+    if not TeleTarget or not TeleTarget.Character or not TeleTarget.Character:FindFirstChild("HumanoidRootPart") then return end; local thrp = TeleTarget.Character.HumanoidRootPart
+    local finalPos; if BMode == 1 then finalPos = thrp.Position + (-thrp.CFrame.LookVector * 2)
+    elseif BMode == 2 then finalPos = thrp.Position + (thrp.CFrame.LookVector * 2)
+    elseif BMode == 3 then finalPos = thrp.Position + Vector3.new(0, 3, 0)
+    elseif BMode == 4 then local a = math.random() * math.pi * 2; finalPos = thrp.Position + Vector3.new(math.cos(a)*3, 0.5, math.sin(a)*3)
+    else local t = tick() * 3; finalPos = thrp.Position + Vector3.new(math.cos(t)*3, 0.5, math.sin(t)*3) end
+    hrp.CFrame = CFrame.new(finalPos, thrp.Position); hrp.AssemblyLinearVelocity = Vector3.zero; hrp.AssemblyAngularVelocity = Vector3.zero
+    for _, v in pairs(c:GetDescendants()) do if v:IsA("BasePart") then v.AssemblyLinearVelocity = Vector3.zero; v.AssemblyAngularVelocity = Vector3.zero end end
+    if IsAutoBlock then BlockDisabledUntil = tick() + 0.3 end
 end
 
 --// EXTEND REACH
-local function ExtendReach() if not IsReach then return end local c=Player.Character if not c then return end local rp=c:FindFirstChild("HumanoidRootPart") if not rp then return end local n,nd=nil,ReachDistance for _,pl in ipairs(Players:GetPlayers()) do if pl~=Player and pl.Character and pl.Character:FindFirstChild("HumanoidRootPart") and pl.Character:FindFirstChild("Humanoid") and pl.Character.Humanoid.Health>0 then local d=(pl.Character.HumanoidRootPart.Position-rp.Position).Magnitude if d<nd then n=pl nd=d end end end if n and n.Character and n.Character:FindFirstChild("HumanoidRootPart") then local tr=n.Character.HumanoidRootPart tr.CFrame=CFrame.new(rp.Position-(rp.Position-tr.Position).Unit*3,tr.Position) tr.AssemblyLinearVelocity=Vector3.zero end end
+local function ExtendReach()
+    if not IsReach then return end; local c = Player.Character; if not c then return end; local rootPos = c:FindFirstChild("HumanoidRootPart"); if not rootPos then return end
+    local nearest, nearestDist = nil, ReachDistance
+    for _, plr in ipairs(Players:GetPlayers()) do if plr ~= Player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr.Character:FindFirstChild("Humanoid") and plr.Character.Humanoid.Health > 0 then local dist = (plr.Character.HumanoidRootPart.Position - rootPos.Position).Magnitude; if dist < nearestDist then nearest = plr; nearestDist = dist end end end
+    if nearest and nearest.Character and nearest.Character:FindFirstChild("HumanoidRootPart") then local thrp = nearest.Character.HumanoidRootPart; thrp.CFrame = CFrame.new(rootPos.Position - (rootPos.Position - thrp.Position).Unit * 3, thrp.Position); thrp.AssemblyLinearVelocity = Vector3.zero end
+end
 
 --// UI UPDATE
 local function UI()
-    local modes={"TRƯỚC MẶT","SAU LƯNG","TRÊN ĐẦU","LOẠN","XOAY VÒNG"}
-    bMode.Text="🔄 "..modes[BMode]
-    bTele.BackgroundColor3=IsTelePro and Color3.fromRGB(20,160,20) or Color3.fromRGB(140,10,10) bTele.Text=IsTelePro and "⚡ TELEPORT: BẬT" or "⚡ TELEPORT: TẮT"
-    bAtk.BackgroundColor3=IsAutoClick and Color3.fromRGB(100,180,220) or Color3.fromRGB(120,60,10) bAtk.Text=IsAutoClick and "💥 IMPACT: BẬT" or "💥 IMPACT: TẮT"
-    bAnti.BackgroundColor3=IsAntiStun and Color3.fromRGB(50,160,50) or Color3.fromRGB(10,80,10) bAnti.Text=IsAntiStun and "🛡 CHỐNG STUN: BẬT" or "🛡 CHỐNG STUN: TẮT"
-    bBlock.BackgroundColor3=IsAutoBlock and Color3.fromRGB(180,140,30) or Color3.fromRGB(80,60,10) bBlock.Text=IsAutoBlock and "🛡 AUTO BLOCK: BẬT" or "🛡 AUTO BLOCK: TẮT"
-    bSpin.BackgroundColor3=IsSpinBot and Color3.fromRGB(100,180,255) or Color3.fromRGB(10,60,100) bSpin.Text=IsSpinBot and "🌀 SPIN: BẬT" or "🌀 SPIN: TẮT"
-    bFastPunch.BackgroundColor3=IsFastPunch and Color3.fromRGB(255,100,20) or Color3.fromRGB(150,50,10) bFastPunch.Text=IsFastPunch and "👊 ĐẤM SIÊU NHANH: BẬT" or "👊 ĐẤM SIÊU NHANH: TẮT"
-    bESP.BackgroundColor3=ESP_ENABLED and Color3.fromRGB(30,180,80) or Color3.fromRGB(80,40,40) bESP.Text=ESP_ENABLED and "👁 ESP: BẬT" or "👁 ESP: TẮT"
-    bReach.BackgroundColor3=IsReach and Color3.fromRGB(200,130,30) or Color3.fromRGB(100,60,20) bReach.Text=IsReach and "📏 TĂNG TẦM ĐÁNH: BẬT" or "📏 TĂNG TẦM ĐÁNH: TẮT"
-    bHB.Text=IsHitboxAll and "📦 HITBOX ALL: BẬT" or "📦 HITBOX ALL: TẮT" bHB.BackgroundColor3=IsHitboxAll and Color3.fromRGB(10,150,30) or Color3.fromRGB(100,50,50)
-    bAim.Text=IsAimLock and "🎯 AIM LOCK: BẬT" or "🎯 AIM LOCK: TẮT" bAim.BackgroundColor3=IsAimLock and Color3.fromRGB(150,10,180) or Color3.fromRGB(100,0,100)
-    bAimRange.Text="📏 TẦM: "..AIM_RANGE bAimFov.Text="👁 FOV: "..AIM_FOV
-    bAimSmooth.Text="🎯 ĐỘ MƯỢT: "..string.format("%.2f",AimSmoothness)
-    bTeleSpeed.Text="⏱ TỐC ĐỘ TELE: "..TeleDelay.."s" spinLabel.Text=SpinSpeed.."°"
-    rl.Text="📏 TẦM: "..ReachDistance.." | 📦 HB: "..HBS
-    bWS.Text="⚡ TỐC ĐỘ "..(IsSpeedHack and "BẬT" or "TẮT") bWS.BackgroundColor3=IsSpeedHack and Color3.fromRGB(180,20,180) or Color3.fromRGB(130,10,130)
-    bNc.BackgroundColor3=IsNoclip and Color3.fromRGB(130,130,130) or Color3.fromRGB(35,35,35) bIf.BackgroundColor3=IsInfJump and Color3.fromRGB(20,160,40) or Color3.fromRGB(10,90,30)
-    for i,tb in pairs(Tabs) do local ia=Frames[i].Visible tb.BackgroundColor3=ia and Color3.fromRGB(180,30,30) or Color3.fromRGB(100,10,10) end
-    wl.Text="TỐC ĐỘ "..CurrentWS hl.Text="HB "..HBS
+    local modes = {"TRƯỚC MẶT", "SAU LƯNG", "TRÊN ĐẦU", "LOẠN", "XOAY VÒNG"}
+    bMode.Text = "🔄 " .. modes[BMode]
+    bTele.BackgroundColor3 = IsTelePro and Color3.fromRGB(20, 160, 20) or Color3.fromRGB(140, 10, 10); bTele.Text = IsTelePro and "⚡ TELEPORT: BẬT" or "⚡ TELEPORT: TẮT"
+    bAtk.BackgroundColor3 = IsAutoClick and Color3.fromRGB(100, 180, 220) or Color3.fromRGB(120, 60, 10); bAtk.Text = IsAutoClick and "💥 IMPACT: BẬT" or "💥 IMPACT: TẮT"
+    bAnti.BackgroundColor3 = IsAntiStun and Color3.fromRGB(50, 160, 50) or Color3.fromRGB(10, 80, 10); bAnti.Text = IsAntiStun and "🛡 CHỐNG STUN: BẬT" or "🛡 CHỐNG STUN: TẮT"
+    bBlock.BackgroundColor3 = IsAutoBlock and Color3.fromRGB(180, 140, 30) or Color3.fromRGB(80, 60, 10); bBlock.Text = IsAutoBlock and "🛡 AUTO BLOCK: BẬT" or "🛡 AUTO BLOCK: TẮT"
+    bSpin.BackgroundColor3 = IsSpinBot and Color3.fromRGB(100, 180, 255) or Color3.fromRGB(10, 60, 100); bSpin.Text = IsSpinBot and "🌀 SPIN: BẬT" or "🌀 SPIN: TẮT"
+    bFastPunch.BackgroundColor3 = IsFastPunch and Color3.fromRGB(255, 100, 20) or Color3.fromRGB(150, 50, 10); bFastPunch.Text = IsFastPunch and "👊 ĐẤM SIÊU NHANH: BẬT" or "👊 ĐẤM SIÊU NHANH: TẮT"
+    bReach.BackgroundColor3 = IsReach and Color3.fromRGB(200, 130, 30) or Color3.fromRGB(100, 60, 20); bReach.Text = IsReach and "📏 TĂNG TẦM ĐÁNH: BẬT" or "📏 TĂNG TẦM ĐÁNH: TẮT"
+    bHB.Text = IsHitboxAll and "📦 HITBOX ALL: BẬT" or "📦 HITBOX ALL: TẮT"; bHB.BackgroundColor3 = IsHitboxAll and Color3.fromRGB(10, 150, 30) or Color3.fromRGB(100, 50, 50)
+    bAim.Text = IsAimLock and "🎯 AIM LOCK: BẬT" or "🎯 AIM LOCK: TẮT"; bAim.BackgroundColor3 = IsAimLock and Color3.fromRGB(150, 10, 180) or Color3.fromRGB(100, 0, 100)
+    bAimRange.Text = "📏 TẦM: " .. AIM_RANGE; bAimFov.Text = "👁 FOV: " .. AIM_FOV
+    bTeleSpeed.Text = "⏱ TỐC ĐỘ TELE: " .. TeleDelay .. "s"; spinLabel.Text = SpinSpeed .. "°"
+    rl.Text = "📏 TẦM: " .. ReachDistance .. " | 📦 HB: " .. HBS
+    bWS.Text = "⚡ TỐC ĐỘ " .. (IsSpeedHack and "BẬT" or "TẮT"); bWS.BackgroundColor3 = IsSpeedHack and Color3.fromRGB(180, 20, 180) or Color3.fromRGB(130, 10, 130)
+    bNc.BackgroundColor3 = IsNoclip and Color3.fromRGB(130, 130, 130) or Color3.fromRGB(35, 35, 35)
+    bIf.BackgroundColor3 = IsInfJump and Color3.fromRGB(20, 160, 40) or Color3.fromRGB(10, 90, 30)
+    for i, tb in pairs(Tabs) do local isActive = Frames[i].Visible; tb.BackgroundColor3 = isActive and Color3.fromRGB(180, 30, 30) or Color3.fromRGB(100, 10, 10) end
+    wl.Text = "TỐC ĐỘ " .. CurrentWS; hl.Text = "HB " .. HBS
 end
 
 --// EVENTS
-Toggle.MouseButton1Click:Connect(function() Main.Visible=not Main.Visible end)
-for i,b in pairs(Tabs) do b.MouseButton1Click:Connect(function() for j,f in pairs(Frames) do f.Visible=(j==i) end UI() end) end
-bTele.MouseButton1Click:Connect(function() IsTelePro=not IsTelePro TeleTarget=nil UI() end)
-bMode.MouseButton1Click:Connect(function() BMode=(BMode%5)+1 UI() end)
-bAtk.MouseButton1Click:Connect(function() IsAutoClick=not IsAutoClick UI() end)
-bAnti.MouseButton1Click:Connect(function() IsAntiStun=not IsAntiStun UI() end)
-bBlock.MouseButton1Click:Connect(function() IsAutoBlock=not IsAutoBlock BlockDisabledUntil=0 UI() end)
-bSpin.MouseButton1Click:Connect(function() IsSpinBot=not IsSpinBot UI() end)
-bFastPunch.MouseButton1Click:Connect(function() IsFastPunch=not IsFastPunch UI() end)
-bESP.MouseButton1Click:Connect(function() ESP_ENABLED=not ESP_ENABLED if ESP_ENABLED then RefreshESP() else ClearAllESP() end UI() end)
-bReach.MouseButton1Click:Connect(function() IsReach=not IsReach UI() end)
-bHB.MouseButton1Click:Connect(function() IsHitboxAll=not IsHitboxAll UI() end)
-bWS.MouseButton1Click:Connect(function() IsSpeedHack=not IsSpeedHack UI() end)
-bNc.MouseButton1Click:Connect(function() IsNoclip=not IsNoclip UI() end)
-bIf.MouseButton1Click:Connect(function() IsInfJump=not IsInfJump UI() end)
+Toggle.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
+for i, b in pairs(Tabs) do b.MouseButton1Click:Connect(function() for j, f in pairs(Frames) do f.Visible = (j == i) end UI() end) end
+bTele.MouseButton1Click:Connect(function() IsTelePro = not IsTelePro; TeleTarget = nil; UI() end)
+bMode.MouseButton1Click:Connect(function() BMode = (BMode % 5) + 1; UI() end)
+bAtk.MouseButton1Click:Connect(function() IsAutoClick = not IsAutoClick; UI() end)
+bAnti.MouseButton1Click:Connect(function() IsAntiStun = not IsAntiStun; UI() end)
+bBlock.MouseButton1Click:Connect(function() IsAutoBlock = not IsAutoBlock; BlockDisabledUntil = 0; UI() end)
+bSpin.MouseButton1Click:Connect(function() IsSpinBot = not IsSpinBot; UI() end)
+bFastPunch.MouseButton1Click:Connect(function() IsFastPunch = not IsFastPunch; UI() end)
+bReach.MouseButton1Click:Connect(function() IsReach = not IsReach; UI() end)
+bHB.MouseButton1Click:Connect(function() IsHitboxAll = not IsHitboxAll; UI() end)
+bWS.MouseButton1Click:Connect(function() IsSpeedHack = not IsSpeedHack; UI() end)
+bNc.MouseButton1Click:Connect(function() IsNoclip = not IsNoclip; UI() end)
+bIf.MouseButton1Click:Connect(function() IsInfJump = not IsInfJump; UI() end)
 bAim.MouseButton1Click:Connect(function() if IsAimLock then StopAimLock() else StartAimLock() end UI() end)
-spinPlus.MouseButton1Click:Connect(function() SpinSpeed=math.min(180,SpinSpeed+15) UI() end)
-spinMinus.MouseButton1Click:Connect(function() SpinSpeed=math.max(15,SpinSpeed-15) UI() end)
-bAimRangeMinus.MouseButton1Click:Connect(function() AIM_RANGE=math.max(10,AIM_RANGE-10) UI() end)
-bAimRangePlus.MouseButton1Click:Connect(function() AIM_RANGE=math.min(260,AIM_RANGE+10) UI() end)
-bAimFovMinus.MouseButton1Click:Connect(function() AIM_FOV=math.max(10,AIM_FOV-15) UI() end)
-bAimFovPlus.MouseButton1Click:Connect(function() AIM_FOV=math.min(360,AIM_FOV+15) UI() end)
-bAimSmoothMinus.MouseButton1Click:Connect(function() AimSmoothness=math.max(0.05,AimSmoothness-0.05) UI() end)
-bAimSmoothPlus.MouseButton1Click:Connect(function() AimSmoothness=math.min(1.0,AimSmoothness+0.05) UI() end)
-bTeleSpeed.MouseButton1Click:Connect(function() TeleDelay=TeleDelay+0.1 if TeleDelay>1.0 then TeleDelay=0.1 end UI() end)
-bTeleSpeed.MouseButton2Click:Connect(function() TeleDelay=TeleDelay-0.1 if TeleDelay<0.1 then TeleDelay=1.0 end UI() end)
-rd.MouseButton1Click:Connect(function() ReachDistance=math.max(5,ReachDistance-2) UI() end)
-ru.MouseButton1Click:Connect(function() ReachDistance=math.min(30,ReachDistance+2) UI() end)
-hu.MouseButton1Click:Connect(function() HBS=math.min(100,HBS+2) UI() end)
-hd.MouseButton1Click:Connect(function() HBS=math.max(2,HBS-2) UI() end)
-wu.MouseButton1Click:Connect(function() CurrentWS=CurrentWS+10 UI() end)
-wd.MouseButton1Click:Connect(function() CurrentWS=math.max(16,CurrentWS-10) UI() end)
+spinPlus.MouseButton1Click:Connect(function() SpinSpeed = math.min(180, SpinSpeed + 15); UI() end)
+spinMinus.MouseButton1Click:Connect(function() SpinSpeed = math.max(15, SpinSpeed - 15); UI() end)
+bAimRangeMinus.MouseButton1Click:Connect(function() AIM_RANGE = math.max(10, AIM_RANGE - 10); UI() end)
+bAimRangePlus.MouseButton1Click:Connect(function() AIM_RANGE = math.min(260, AIM_RANGE + 10); UI() end)
+bAimFovMinus.MouseButton1Click:Connect(function() AIM_FOV = math.max(10, AIM_FOV - 15); UI() end)
+bAimFovPlus.MouseButton1Click:Connect(function() AIM_FOV = math.min(360, AIM_FOV + 15); UI() end)
+bTeleSpeed.MouseButton1Click:Connect(function() TeleDelay = TeleDelay + 0.1; if TeleDelay > 1.0 then TeleDelay = 0.1 end; UI() end)
+bTeleSpeed.MouseButton2Click:Connect(function() TeleDelay = TeleDelay - 0.1; if TeleDelay < 0.1 then TeleDelay = 1.0 end; UI() end)
+rd.MouseButton1Click:Connect(function() ReachDistance = math.max(5, ReachDistance - 2); UI() end)
+ru.MouseButton1Click:Connect(function() ReachDistance = math.min(30, ReachDistance + 2); UI() end)
+hu.MouseButton1Click:Connect(function() HBS = math.min(100, HBS + 2); UI() end)
+hd.MouseButton1Click:Connect(function() HBS = math.max(2, HBS - 2); UI() end)
+wu.MouseButton1Click:Connect(function() CurrentWS = CurrentWS + 10; UI() end)
+wd.MouseButton1Click:Connect(function() CurrentWS = math.max(16, CurrentWS - 10); UI() end)
 
 --// LỆNH CHAT
-if IsOwner then Player.Chatted:Connect(function(m) local a=m:split(" ") local c=a[1]:lower() if c=="bring" and a[2] then local t=FindPlayer(a[2]) if t then StartBring(t) end end if c=="unbring" and a[2] then local t=FindPlayer(a[2]) if t then StopBring(t) end end if c=="unbringall" then StopBring() end if c=="kill" and a[2] then local t=FindPlayer(a[2]) if t and t.Character and t.Character:FindFirstChild("Humanoid") then t.Character.Humanoid.Health=0 end end if c=="killall" then for _,p in pairs(Players:GetPlayers()) do if p~=Player and p.Character and p.Character:FindFirstChild("Humanoid") then p.Character.Humanoid.Health=0 end end end if c=="blacklist" and a[2] then local t=FindPlayer(a[2]) if t then Blacklist[t.Name]=true pcall(function() t:Kick("KHÔNG PHẬN SỰ,KHÔNG PHẢI TEAM HTGMX") end) end end if c=="unblacklist" and a[2] then local t=FindPlayer(a[2]) if t then Blacklist[t.Name]=nil end end if c=="unblacklistall" then Blacklist={} end end) end
+if IsOwner then
+    Player.Chatted:Connect(function(msg)
+        local args = msg:split(" ")
+        local cmd = args[1]:lower()
+        if cmd == "bring" and args[2] then local t = FindPlayer(args[2]); if t then StartBring(t) end end
+        if cmd == "unbring" and args[2] then local t = FindPlayer(args[2]); if t then StopBring(t) end end
+        if cmd == "unbringall" then StopBring() end
+        if cmd == "kill" and args[2] then local t = FindPlayer(args[2]); if t and t.Character and t.Character:FindFirstChild("Humanoid") then t.Character.Humanoid.Health = 0 end end
+        if cmd == "killall" then for _, p in pairs(Players:GetPlayers()) do if p ~= Player and p.Character and p.Character:FindFirstChild("Humanoid") then p.Character.Humanoid.Health = 0 end end end
+        if cmd == "blacklist" and args[2] then local t = FindPlayer(args[2]); if t then Blacklist[t.Name] = true; pcall(function() t:Kick("KHÔNG PHẬN SỰ,KHÔNG PHẢI TEAM HTGMX") end) end end
+        if cmd == "unblacklist" and args[2] then local t = FindPlayer(args[2]); if t then Blacklist[t.Name] = nil end end
+        if cmd == "unblacklistall" then Blacklist = {} end
+    end)
+end
 
 --// BRING LOOP
-RunService.RenderStepped:Connect(function() for _,t in pairs(BringTargets) do if t and t.Character and t.Character:FindFirstChild("HumanoidRootPart") then local mc=Player.Character if not mc or not mc:FindFirstChild("HumanoidRootPart") then continue end local mr=mc.HumanoidRootPart local tr=t.Character.HumanoidRootPart local tc=mr.CFrame*CFrame.new(0,0,-5) for _,v in pairs(tr:GetChildren()) do if (v:IsA("BodyMover") or v:IsA("LinearVelocity") or v:IsA("VectorForce") or v:IsA("AlignPosition")) and v.Name~="BringForce" and v.Name~="BringAtt" then v:Destroy() end end local d=(tc.p-tr.Position).Magnitude local at=tr:FindFirstChild("BringAtt") or Instance.new("Attachment",tr) at.Name="BringAtt" local lv=tr:FindFirstChild("BringForce") or Instance.new("LinearVelocity",tr) lv.Name="BringForce" lv.MaxForce=9999999 lv.Attachment0=at if d>20 then lv.VectorVelocity=(tc.p-tr.Position).Unit*200 else tr.CFrame=tc lv.VectorVelocity=Vector3.new(0,0,0) tr.Velocity=Vector3.new(0,0,0) tr.RotVelocity=Vector3.new(0,0,0) end for _,v in pairs(t.Character:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide=false end end end end end)
+RunService.RenderStepped:Connect(function()
+    for _, target in pairs(BringTargets) do
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local myChar = Player.Character
+            if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then continue end
+            local myRoot = myChar.HumanoidRootPart
+            local targetRoot = target.Character.HumanoidRootPart
+            local targetCFrame = myRoot.CFrame * CFrame.new(0, 0, -5)
+            CleanOtherPhysics(targetRoot)
+            local dist = (targetCFrame.p - targetRoot.Position).Magnitude
+            local att = targetRoot:FindFirstChild("BringAtt") or Instance.new("Attachment", targetRoot)
+            att.Name = "BringAtt"
+            local lv = targetRoot:FindFirstChild("BringForce") or Instance.new("LinearVelocity", targetRoot)
+            lv.Name = "BringForce"; lv.MaxForce = 9999999; lv.Attachment0 = att
+            if dist > 20 then lv.VectorVelocity = (targetCFrame.p - targetRoot.Position).Unit * 200
+            else targetRoot.CFrame = targetCFrame; lv.VectorVelocity = Vector3.new(0,0,0); targetRoot.Velocity = Vector3.new(0,0,0); targetRoot.RotVelocity = Vector3.new(0,0,0) end
+            for _, v in pairs(target.Character:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end
+        end
+    end
+end)
 
 --// GAMEPLAY
 UIS.JumpRequest:Connect(function() if IsInfJump and Player.Character and Player.Character:FindFirstChildOfClass("Humanoid") then Player.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping) end end)
-RunService.Stepped:Connect(function() local c=Player.Character if not c or not c:FindFirstChild("HumanoidRootPart") or not c:FindFirstChildOfClass("Humanoid") then return end local hr=c.HumanoidRootPart local hm=c:FindFirstChildOfClass("Humanoid") if IsNoclip or (tick()<NoclipTimer) then for _,v in pairs(c:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide=false end end end if IsSpinBot then hr.CFrame=hr.CFrame*CFrame.Angles(0,math.rad(SpinSpeed),0) end if IsTelePro and tick()-LastTeleport>TeleDelay then LastTeleport=tick() TeleportToTarget() end if (hm.WalkSpeed==0 or hm.JumpPower==0) and IsAntiStun and (tick()-SpawnTime>3) then NoclipTimer=tick()+0.5 hr.AssemblyLinearVelocity=Vector3.new(math.random(-500,500),200,math.random(-500,500)) end if IsReach then ExtendReach() end if ESP_ENABLED then UpdateESP() end end)
-RunService.Heartbeat:Connect(function() local c=Player.Character local r=c and c:FindFirstChild("HumanoidRootPart") local h=c and c:FindFirstChildOfClass("Humanoid") if not r or not h then return end if IsAutoBlock and tick()>BlockDisabledUntil and CombatRemote then pcall(function() CombatRemote:FireServer("Block",true) ActionRemote:FireServer("Block",true) end) elseif IsAutoBlock and tick()<=BlockDisabledUntil and CombatRemote then pcall(function() CombatRemote:FireServer("Block",false) ActionRemote:FireServer("Block",false) end) end end)
-RunService.RenderStepped:Connect(function() for _,p in pairs(Players:GetPlayers()) do if p~=Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then local hr=p.Character.HumanoidRootPart if IsHitboxAll and not IgnoreList[p.Name] then hr.Size=Vector3.new(HBS,HBS,HBS) hr.Transparency=0.7 hr.CanCollide=false else hr.Size=Vector3.new(2,2,1) hr.Transparency=1 hr.CanCollide=true end end end end)
-task.spawn(function() while task.wait(0.1) do local h=Player.Character and Player.Character:FindFirstChildOfClass("Humanoid") if h and IsSpeedHack then h.WalkSpeed=CurrentWS end end end)
-task.spawn(function() while true do RunService.Heartbeat:Wait() if IsAutoClick and CombatRemote then pcall(function() CombatRemote:FireServer("Block",true) ActionRemote:FireServer("Block",true) RunService.RenderStepped:Wait() CombatRemote:FireServer("Block",false) ActionRemote:FireServer("Block",false) for i=1,4 do CombatRemote:FireServer("M1") CombatRemote:FireServer("M2") end CombatRemote:FireServer("Kick") ActionRemote:FireServer("Kick") task.wait(0.02) end) end if IsFastPunch and CombatRemote then pcall(function() CombatRemote:FireServer("M1") task.wait(0.01) CombatRemote:FireServer("M1") task.wait(0.01) CombatRemote:FireServer("M2") task.wait(0.01) CombatRemote:FireServer("M1") CombatRemote:FireServer("M2") end) end end end)
+RunService.Stepped:Connect(function()
+    local c = Player.Character; if not c or not c:FindFirstChild("HumanoidRootPart") or not c:FindFirstChildOfClass("Humanoid") then return end
+    local hrp = c.HumanoidRootPart; local hum = c:FindFirstChildOfClass("Humanoid")
+    if IsNoclip or (tick() < NoclipTimer) then for _, v in pairs(c:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end end
+    if IsSpinBot then hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(SpinSpeed), 0) end
+    if IsTelePro and tick() - LastTeleport > TeleDelay then LastTeleport = tick(); TeleportToTarget() end
+    if (hum.WalkSpeed == 0 or hum.JumpPower == 0) and IsAntiStun and (tick() - SpawnTime > 3) then NoclipTimer = tick() + 0.5; hrp.AssemblyLinearVelocity = Vector3.new(math.random(-500,500), 200, math.random(-500,500)) end
+    if IsReach then ExtendReach() end
+    if ESP_ENABLED then UpdateESP() end
+end)
+RunService.Heartbeat:Connect(function()
+    local c = Player.Character; local r = c and c:FindFirstChild("HumanoidRootPart"); local h = c and c:FindFirstChildOfClass("Humanoid")
+    if not r or not h then return end
+    if IsAutoBlock and tick() > BlockDisabledUntil and CombatRemote then pcall(function() CombatRemote:FireServer("Block", true); ActionRemote:FireServer("Block", true) end)
+    elseif IsAutoBlock and tick() <= BlockDisabledUntil and CombatRemote then pcall(function() CombatRemote:FireServer("Block", false); ActionRemote:FireServer("Block", false) end) end
+end)
+RunService.RenderStepped:Connect(function()
+    for _, p in pairs(Players:GetPlayers()) do if p ~= Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = p.Character.HumanoidRootPart
+        if IsHitboxAll and not IgnoreList[p.Name] then hrp.Size = Vector3.new(HBS,HBS,HBS); hrp.Transparency = 0.7; hrp.CanCollide = false
+        else hrp.Size = Vector3.new(2,2,1); hrp.Transparency = 1; hrp.CanCollide = true end end end
+end)
+task.spawn(function() while task.wait(0.1) do local h = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid") if h and IsSpeedHack then h.WalkSpeed = CurrentWS end end end)
+task.spawn(function() while true do RunService.Heartbeat:Wait()
+    if IsAutoClick and CombatRemote then pcall(function() CombatRemote:FireServer("Block",true) ActionRemote:FireServer("Block",true) RunService.RenderStepped:Wait() CombatRemote:FireServer("Block",false) ActionRemote:FireServer("Block",false) for i=1,4 do CombatRemote:FireServer("M1") CombatRemote:FireServer("M2") end CombatRemote:FireServer("Kick") ActionRemote:FireServer("Kick") task.wait(0.02) end) end
+    if IsFastPunch and CombatRemote then pcall(function() CombatRemote:FireServer("M1") task.wait(0.01) CombatRemote:FireServer("M1") task.wait(0.01) CombatRemote:FireServer("M2") task.wait(0.01) CombatRemote:FireServer("M1") CombatRemote:FireServer("M2") end) end
+end end)
 
 --// ESP EVENTS
-for _,p in pairs(Players:GetPlayers()) do if p~=Player then p.CharacterAdded:Connect(function() task.wait(0.5) if ESP_ENABLED then CreateESP(p) end end) if p.Character and p.Character:FindFirstChild("Head") and ESP_ENABLED then CreateESP(p) end end end
-Players.PlayerAdded:Connect(function(p) p.CharacterAdded:Connect(function() task.wait(0.5) if ESP_ENABLED then CreateESP(p) end end) end)
-Players.PlayerRemoving:Connect(function(p) RemoveESP(p) StopBring(p) end)
+for _, p in pairs(Players:GetPlayers()) do
+    if p ~= Player then
+        p.CharacterAdded:Connect(function() task.wait(0.5); if ESP_ENABLED then CreateESP(p) end end)
+        if p.Character and p.Character:FindFirstChild("Head") and ESP_ENABLED then CreateESP(p) end
+    end
+end
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function() task.wait(0.5); if ESP_ENABLED then CreateESP(p) end end)
+end)
+Players.PlayerRemoving:Connect(function(p) RemoveESP(p); StopBring(p) end)
 
-Player.CharacterAdded:Connect(function() SpawnTime=tick() LastTeleport=0 TeleTarget=nil BlockDisabledUntil=0 if IsAimLock then task.wait(0.3) StartAimLock() end if ESP_ENABLED then task.wait(1) RefreshESP() end UI() end)
-UI() UpdateHitboxList() UpdateBVList()
-Players.PlayerAdded:Connect(function() task.wait(1) UpdateHitboxList() end)
-Players.PlayerRemoving:Connect(function(p) IgnoreList[p.Name]=nil AimProtected[p.Name]=nil UpdateHitboxList() end)
-local vu=game:GetService("VirtualUser") Players.LocalPlayer.Idled:Connect(function() vu:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame) task.wait(1) vu:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame) end)
-print("✅ TUAN HUB + AIM MƯỢT (MB&PC) LOADED!")
-print("🎯 ĐỘ MƯỢT AIM: "..AimSmoothness.." (0.05-1.0)")
+Player.CharacterAdded:Connect(function() SpawnTime = tick(); LastTeleport = 0; TeleTarget = nil; BlockDisabledUntil = 0; if IsAimLock then task.wait(0.3); StartAimLock() end; if ESP_ENABLED then task.wait(1); RefreshESP() end; UI() end)
+UI(); UpdateHitboxList(); UpdateBVList(); UpdateDetectorList()
+Players.PlayerAdded:Connect(function() task.wait(1); UpdateHitboxList() end)
+Players.PlayerRemoving:Connect(function(p) IgnoreList[p.Name] = nil; AimProtected[p.Name] = nil; UpdateHitboxList() end)
+local vu = game:GetService("VirtualUser")
+Players.LocalPlayer.Idled:Connect(function() vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame) task.wait(1) vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame) end)
+print("✅ TUAN HUB + ESP + ID CHECK + DETECTOR LOADED!")
+print("👑 ADMIN: long9ngon_yeubapw | tuanyeuquynh_999")
+print("👁 Nút ESP: Bật/tắt Highlight ở góc phải màn hình")
