@@ -53,162 +53,6 @@ end
 
 if CheckBlacklist() then return end
 
---// ESP SYSTEM
-local ESP_ENABLED = true
-local ESP_Objects = {}
-
-local ESP_ToggleBtn = Instance.new("TextButton", CoreGui)
-ESP_ToggleBtn.Size = UDim2.new(0, 40, 0, 40)
-ESP_ToggleBtn.Position = UDim2.new(1, -100, 0.5, -20)
-ESP_ToggleBtn.Text = "👁"
-ESP_ToggleBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-ESP_ToggleBtn.TextColor3 = Color3.fromRGB(80, 250, 123)
-ESP_ToggleBtn.Font = Enum.Font.GothamBold
-ESP_ToggleBtn.TextSize = 20
-ESP_ToggleBtn.BorderSizePixel = 0
-Instance.new("UICorner", ESP_ToggleBtn).CornerRadius = UDim.new(1, 0)
-
-ESP_ToggleBtn.MouseButton1Click:Connect(function()
-    ESP_ENABLED = not ESP_ENABLED
-    if ESP_ENABLED then
-        ESP_ToggleBtn.TextColor3 = Color3.fromRGB(80, 250, 123)
-        RefreshESP()
-    else
-        ESP_ToggleBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
-        ClearAllESP()
-    end
-end)
-
-local function CreateESP(target)
-    if not target.Character then return end
-    local head = target.Character:FindFirstChild("Head")
-    if not head then return end
-
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "ESP_Highlight"
-    highlight.FillColor = Color3.fromRGB(255, 50, 50)
-    highlight.FillTransparency = 0.5
-    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-    highlight.OutlineTransparency = 0
-    highlight.Adornee = target.Character
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Enabled = ESP_ENABLED
-    highlight.Parent = target.Character
-
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "ESP_Billboard"
-    billboard.Size = UDim2.new(0, 200, 0, 30)
-    billboard.StudsOffset = Vector3.new(0, 3, 0)
-    billboard.AlwaysOnTop = true
-    billboard.Enabled = ESP_ENABLED
-    billboard.Parent = head
-
-    local nameLabel = Instance.new("TextLabel", billboard)
-    nameLabel.Size = UDim2.new(1, 0, 0, 16)
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.Text = target.DisplayName
-    nameLabel.TextColor3 = Color3.new(1, 1, 1)
-    nameLabel.Font = Enum.Font.GothamBold
-    nameLabel.TextSize = 12
-    nameLabel.TextStrokeTransparency = 0.5
-
-    local distLabel = Instance.new("TextLabel", billboard)
-    distLabel.Size = UDim2.new(1, 0, 0, 14)
-    distLabel.Position = UDim2.new(0, 0, 0, 16)
-    distLabel.BackgroundTransparency = 1
-    distLabel.Text = ""
-    distLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
-    distLabel.Font = Enum.Font.GothamBold
-    distLabel.TextSize = 10
-    distLabel.TextStrokeTransparency = 0.5
-
-    local healthBar = Instance.new("Frame", billboard)
-    healthBar.Size = UDim2.new(1, 0, 0, 3)
-    healthBar.Position = UDim2.new(0, 0, 0, 29)
-    healthBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    healthBar.BorderSizePixel = 0
-
-    local healthFill = Instance.new("Frame", healthBar)
-    healthFill.Size = UDim2.new(1, 0, 1, 0)
-    healthFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-    healthFill.BorderSizePixel = 0
-
-    table.insert(ESP_Objects, {
-        Target = target,
-        Highlight = highlight,
-        Billboard = billboard,
-        DistLabel = distLabel,
-        HealthFill = healthFill
-    })
-end
-
-local function RemoveESP(target)
-    for i, esp in pairs(ESP_Objects) do
-        if esp.Target == target then
-            if esp.Highlight then esp.Highlight:Destroy() end
-            if esp.Billboard then esp.Billboard:Destroy() end
-            table.remove(ESP_Objects, i)
-            break
-        end
-    end
-    if target.Character then
-        local hl = target.Character:FindFirstChild("ESP_Highlight")
-        if hl then hl:Destroy() end
-        local head = target.Character:FindFirstChild("Head")
-        if head then
-            local bb = head:FindFirstChild("ESP_Billboard")
-            if bb then bb:Destroy() end
-        end
-    end
-end
-
-local function ClearAllESP()
-    for _, esp in pairs(ESP_Objects) do
-        if esp.Highlight then esp.Highlight:Destroy() end
-        if esp.Billboard then esp.Billboard:Destroy() end
-    end
-    ESP_Objects = {}
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= Player and p.Character then
-            local hl = p.Character:FindFirstChild("ESP_Highlight")
-            if hl then hl:Destroy() end
-            local head = p.Character:FindFirstChild("Head")
-            if head then
-                local bb = head:FindFirstChild("ESP_Billboard")
-                if bb then bb:Destroy() end
-            end
-        end
-    end
-end
-
-local function RefreshESP()
-    ClearAllESP()
-    if not ESP_ENABLED then return end
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= Player and p.Character and p.Character:FindFirstChild("Head") then
-            CreateESP(p)
-        end
-    end
-end
-
-local function UpdateESP()
-    if not ESP_ENABLED then return end
-    for _, esp in pairs(ESP_Objects) do
-        if esp.Target.Character and esp.Target.Character:FindFirstChild("Humanoid") and esp.Target.Character:FindFirstChild("HumanoidRootPart") then
-            local myChar = Player.Character
-            if myChar and myChar:FindFirstChild("HumanoidRootPart") then
-                local dist = (esp.Target.Character.HumanoidRootPart.Position - myChar.HumanoidRootPart.Position).Magnitude
-                esp.DistLabel.Text = math.floor(dist) .. "m"
-                local health = esp.Target.Character.Humanoid.Health / esp.Target.Character.Humanoid.MaxHealth
-                esp.HealthFill.Size = UDim2.new(health, 0, 1, 0)
-                if health > 0.5 then esp.HealthFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-                elseif health > 0.25 then esp.HealthFill.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
-                else esp.HealthFill.BackgroundColor3 = Color3.fromRGB(255, 0, 0) end
-            end
-        end
-    end
-end
-
 --// USER DETECTOR
 local DetectorEnabled = true
 local SyncFolder = workspace:FindFirstChild("TuanHub_Users") or Instance.new("Folder")
@@ -242,7 +86,7 @@ DetectorFrame.Size = UDim2.new(0, 350, 0, 300)
 DetectorFrame.Position = UDim2.new(1, -360, 0.5, -150)
 DetectorFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
 DetectorFrame.BorderSizePixel = 0
-DetectorFrame.Visible = false
+DetectorFrame.Visible = true
 Instance.new("UICorner", DetectorFrame).CornerRadius = UDim.new(0, 8)
 
 local DetectorTitle = Instance.new("TextLabel", DetectorFrame)
@@ -269,22 +113,28 @@ DetectorToggleBtn.MouseButton1Click:Connect(function()
     DetectorEnabled = not DetectorEnabled
     if DetectorEnabled then
         DetectorToggleBtn.Text = "BẬT"; DetectorToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 0)
+        DetectorScroll.Visible = true
     else
         DetectorToggleBtn.Text = "TẮT"; DetectorToggleBtn.BackgroundColor3 = Color3.fromRGB(140, 0, 0)
+        DetectorScroll.Visible = false
     end
+    UpdateDetectorList()
 end)
 
 local HideBtn = Instance.new("TextButton", DetectorFrame)
 HideBtn.Size = UDim2.new(0, 30, 0, 28)
 HideBtn.Position = UDim2.new(1, -130, 0, 3)
-HideBtn.Text = "✕"
+HideBtn.Text = "👥"
 HideBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
 HideBtn.TextColor3 = Color3.new(1, 1, 1)
 HideBtn.Font = Enum.Font.GothamBold
 HideBtn.TextSize = 14
 HideBtn.BorderSizePixel = 0
 Instance.new("UICorner", HideBtn).CornerRadius = UDim.new(0, 5)
-HideBtn.MouseButton1Click:Connect(function() DetectorFrame.Visible = false end)
+HideBtn.MouseButton1Click:Connect(function()
+    DetectorFrame.Visible = not DetectorFrame.Visible
+    ShowDetectorBtn.Visible = not DetectorFrame.Visible
+end)
 
 local ShowDetectorBtn = Instance.new("TextButton", DetectorUI)
 ShowDetectorBtn.Size = UDim2.new(0, 40, 0, 40)
@@ -295,11 +145,14 @@ ShowDetectorBtn.TextColor3 = Color3.fromRGB(80, 250, 123)
 ShowDetectorBtn.Font = Enum.Font.GothamBold
 ShowDetectorBtn.TextSize = 20
 ShowDetectorBtn.BorderSizePixel = 0
+ShowDetectorBtn.Visible = false
 Instance.new("UICorner", ShowDetectorBtn).CornerRadius = UDim.new(1, 0)
-ShowDetectorBtn.MouseButton1Click:Connect(function() DetectorFrame.Visible = true end)
+ShowDetectorBtn.MouseButton1Click:Connect(function()
+    DetectorFrame.Visible = true; ShowDetectorBtn.Visible = false
+end)
 
 local DetectorScroll = Instance.new("ScrollingFrame", DetectorFrame)
-DetectorScroll.Size = UDim2.new(1, -10, 1, -45)
+DetectorScroll.Size = UDim2.new(1, -10, 1, -85)
 DetectorScroll.Position = UDim2.new(0, 5, 0, 40)
 DetectorScroll.BackgroundTransparency = 1
 DetectorScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -307,37 +160,87 @@ DetectorScroll.ScrollBarThickness = 3
 DetectorScroll.ScrollBarImageColor3 = Color3.fromRGB(80, 250, 123)
 
 local DetectorLayout = Instance.new("UIListLayout", DetectorScroll)
-DetectorLayout.Padding = UDim.new(0, 3)
+DetectorLayout.Padding = UDim.new(0, 4)
 
 local function UpdateDetectorList()
     for _, v in pairs(DetectorScroll:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
     CleanTags()
+    
+    local myFrame = Instance.new("Frame", DetectorScroll)
+    myFrame.Size = UDim2.new(1, -5, 0, 40)
+    myFrame.BackgroundColor3 = Color3.fromRGB(35, 50, 35)
+    myFrame.BorderSizePixel = 0
+    Instance.new("UICorner", myFrame).CornerRadius = UDim.new(0, 5)
+    
+    local myLabel = Instance.new("TextLabel", myFrame)
+    myLabel.Size = UDim2.new(1, -10, 1, 0)
+    myLabel.Position = UDim2.new(0, 10, 0, 0)
+    myLabel.BackgroundTransparency = 1
+    myLabel.Text = "👑 " .. Player.DisplayName .. " (BẠN)"
+    myLabel.TextColor3 = Color3.fromRGB(80, 250, 123)
+    myLabel.Font = Enum.Font.GothamBold
+    myLabel.TextSize = 11
+    myLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
     for _, v in pairs(SyncFolder:GetChildren()) do
         if v:IsA("StringValue") and v.Name ~= Player.Name then
             local p = Players:FindFirstChild(v.Name)
             if p then
                 local ItemFrame = Instance.new("Frame", DetectorScroll)
-                ItemFrame.Size = UDim2.new(1, -5, 0, 35)
+                ItemFrame.Size = UDim2.new(1, -5, 0, 40)
                 ItemFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
                 ItemFrame.BorderSizePixel = 0
                 Instance.new("UICorner", ItemFrame).CornerRadius = UDim.new(0, 5)
                 
                 local NameLabel = Instance.new("TextLabel", ItemFrame)
-                NameLabel.Size = UDim2.new(1, -10, 1, 0)
+                NameLabel.Size = UDim2.new(0.55, 0, 1, 0)
                 NameLabel.Position = UDim2.new(0, 10, 0, 0)
                 NameLabel.BackgroundTransparency = 1
                 NameLabel.Text = "👤 " .. p.DisplayName
                 NameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
                 NameLabel.Font = Enum.Font.GothamBold
-                NameLabel.TextSize = 10
+                NameLabel.TextSize = 11
                 NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+                
+                if IsOwner then
+                    local KickBtn = Instance.new("TextButton", ItemFrame)
+                    KickBtn.Size = UDim2.new(0, 55, 0, 28)
+                    KickBtn.Position = UDim2.new(1, -60, 0.5, -14)
+                    KickBtn.Text = "KICK"
+                    KickBtn.BackgroundColor3 = Color3.fromRGB(180, 30, 30)
+                    KickBtn.TextColor3 = Color3.new(1, 1, 1)
+                    KickBtn.Font = Enum.Font.GothamBold
+                    KickBtn.TextSize = 10
+                    KickBtn.BorderSizePixel = 0
+                    Instance.new("UICorner", KickBtn).CornerRadius = UDim.new(0, 4)
+                    KickBtn.MouseButton1Click:Connect(function()
+                        Blacklist[p.Name] = true
+                        pcall(function() p:Kick("KHÔNG PHẬN SỰ,KHÔNG PHẢI TEAM HTGMX") end)
+                        UpdateDetectorList()
+                    end)
+                end
             end
         end
     end
     DetectorScroll.CanvasSize = UDim2.new(0, 0, 0, DetectorLayout.AbsoluteContentSize.Y)
 end
 
+if IsOwner then
+    local UnblacklistBtn = Instance.new("TextButton", DetectorFrame)
+    UnblacklistBtn.Size = UDim2.new(0, 330, 0, 28)
+    UnblacklistBtn.Position = UDim2.new(0, 5, 0, 265)
+    UnblacklistBtn.Text = "🔓 MỞ KHÓA TẤT CẢ"
+    UnblacklistBtn.BackgroundColor3 = Color3.fromRGB(30, 120, 50)
+    UnblacklistBtn.TextColor3 = Color3.new(1, 1, 1)
+    UnblacklistBtn.Font = Enum.Font.GothamBold
+    UnblacklistBtn.TextSize = 11
+    UnblacklistBtn.BorderSizePixel = 0
+    Instance.new("UICorner", UnblacklistBtn).CornerRadius = UDim.new(0, 5)
+    UnblacklistBtn.MouseButton1Click:Connect(function() Blacklist = {}; print("🔓 ĐÃ MỞ KHÓA TẤT CẢ!") end)
+end
+
 task.spawn(function() while task.wait(3) do UpdateDetectorList() end end)
+UpdateDetectorList()
 
 --// BRING SYSTEM
 local BringTargets = {}
@@ -796,7 +699,6 @@ RunService.Stepped:Connect(function()
     if IsTelePro and tick() - LastTeleport > TeleDelay then LastTeleport = tick(); TeleportToTarget() end
     if (hum.WalkSpeed == 0 or hum.JumpPower == 0) and IsAntiStun and (tick() - SpawnTime > 3) then NoclipTimer = tick() + 0.5; hrp.AssemblyLinearVelocity = Vector3.new(math.random(-500,500), 200, math.random(-500,500)) end
     if IsReach then ExtendReach() end
-    if ESP_ENABLED then UpdateESP() end
 end)
 RunService.Heartbeat:Connect(function()
     local c = Player.Character; local r = c and c:FindFirstChild("HumanoidRootPart"); local h = c and c:FindFirstChildOfClass("Humanoid")
@@ -816,24 +718,11 @@ task.spawn(function() while true do RunService.Heartbeat:Wait()
     if IsFastPunch and CombatRemote then pcall(function() CombatRemote:FireServer("M1") task.wait(0.01) CombatRemote:FireServer("M1") task.wait(0.01) CombatRemote:FireServer("M2") task.wait(0.01) CombatRemote:FireServer("M1") CombatRemote:FireServer("M2") end) end
 end end)
 
---// ESP EVENTS
-for _, p in pairs(Players:GetPlayers()) do
-    if p ~= Player then
-        p.CharacterAdded:Connect(function() task.wait(0.5); if ESP_ENABLED then CreateESP(p) end end)
-        if p.Character and p.Character:FindFirstChild("Head") and ESP_ENABLED then CreateESP(p) end
-    end
-end
-Players.PlayerAdded:Connect(function(p)
-    p.CharacterAdded:Connect(function() task.wait(0.5); if ESP_ENABLED then CreateESP(p) end end)
-end)
-Players.PlayerRemoving:Connect(function(p) RemoveESP(p); StopBring(p) end)
-
-Player.CharacterAdded:Connect(function() SpawnTime = tick(); LastTeleport = 0; TeleTarget = nil; BlockDisabledUntil = 0; if IsAimLock then task.wait(0.3); StartAimLock() end; if ESP_ENABLED then task.wait(1); RefreshESP() end; UI() end)
+Player.CharacterAdded:Connect(function() SpawnTime = tick(); LastTeleport = 0; TeleTarget = nil; BlockDisabledUntil = 0; if IsAimLock then task.wait(0.3); StartAimLock() end; UI() end)
 UI(); UpdateHitboxList(); UpdateBVList(); UpdateDetectorList()
 Players.PlayerAdded:Connect(function() task.wait(1); UpdateHitboxList() end)
-Players.PlayerRemoving:Connect(function(p) IgnoreList[p.Name] = nil; AimProtected[p.Name] = nil; UpdateHitboxList() end)
+Players.PlayerRemoving:Connect(function(p) IgnoreList[p.Name] = nil; AimProtected[p.Name] = nil; UpdateHitboxList(); StopBring(p) end)
 local vu = game:GetService("VirtualUser")
 Players.LocalPlayer.Idled:Connect(function() vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame) task.wait(1) vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame) end)
-print("✅ TUAN HUB + ESP + ID CHECK + DETECTOR LOADED!")
+print("✅ TUAN HUB + ID CHECK + DETECTOR LOADED!")
 print("👑 ADMIN: long9ngon_yeubapw | tuanyeuquynh_999")
-print("👁 Nút ESP: Bật/tắt Highlight ở góc phải màn hình")
